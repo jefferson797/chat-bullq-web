@@ -294,8 +294,50 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
       }
       onSelect(conv);
       setLastClickedIndex(index);
+
+      // Mark as read on click. Optimistic: zero the local counter
+      // immediately so the badge disappears before the API roundtrip;
+      // backend then emits conversation:read via socket which becomes
+      // a no-op for this user (counter is already 0) but syncs other
+      // tabs/devices logged into the same account.
+      if ((conv.unreadCount ?? 0) > 0) {
+        const lastMsgId = conv.messages?.[0]?.id;
+        queryClient.setQueryData<any>(
+          ['conversations', orgId, viewId ?? null],
+          () => undefined,
+        );
+        // Optimistic update across all paginated pages.
+        queryClient.setQueriesData<any>(
+          { queryKey: ['conversations'] },
+          (old: any) => {
+            if (!old?.pages) return old;
+            return {
+              ...old,
+              pages: old.pages.map((p: any) => ({
+                ...p,
+                conversations: p.conversations.map((c: Conversation) =>
+                  c.id === conv.id ? { ...c, unreadCount: 0 } : c,
+                ),
+              })),
+            };
+          },
+        );
+        inboxService.markAsRead(conv.id, lastMsgId).catch(() => {
+          // Server rejected — refetch to roll back.
+          queryClient.invalidateQueries({ queryKey: ['conversations'] });
+        });
+      }
     },
-    [lastClickedIndex, conversations, selectedIds.size, clearSelection, onSelect],
+    [
+      lastClickedIndex,
+      conversations,
+      selectedIds.size,
+      clearSelection,
+      onSelect,
+      queryClient,
+      orgId,
+      viewId,
+    ],
   );
 
   const toggleSelect = useCallback((id: string, index: number) => {
@@ -328,10 +370,32 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
     const unsubUpdated = on('conversation:updated', () => {
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     });
+    // When the same user reads a conversation in another tab/device, zero
+    // the badge here too without a full refetch.
+    const unsubRead = on('conversation:read', (payload: any) => {
+      const id = payload?.conversationId;
+      if (!id) return;
+      queryClient.setQueriesData<any>(
+        { queryKey: ['conversations'] },
+        (old: any) => {
+          if (!old?.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map((p: any) => ({
+              ...p,
+              conversations: p.conversations.map((c: Conversation) =>
+                c.id === id ? { ...c, unreadCount: 0 } : c,
+              ),
+            })),
+          };
+        },
+      );
+    });
     return () => {
       unsubNew?.();
       unsubImported?.();
       unsubUpdated?.();
+      unsubRead?.();
     };
   }, [on, queryClient]);
 
@@ -801,22 +865,58 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
                     })()}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-2">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className={`truncate text-[13px] font-medium ${isActive || isSelected ? 'text-zinc-900 dark:text-zinc-100' : 'text-zinc-800 dark:text-zinc-200'}`}>
-                          {conv.contact.name || conv.contact.phone || 'Desconhecido'}
-                        </span>
-                        <div className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusColors[conv.status] || 'bg-zinc-300'}`} />
-                      </div>
-                      <span className="shrink-0 text-[10px] tabular-nums text-zinc-400 dark:text-zinc-500">
-                        {formatTime(conv.messages[0]?.createdAt ?? conv.lastMessageAt)}
-                      </span>
-                    </div>
-                    <div className="mt-0.5 flex items-center gap-1.5">
-                      <p className="truncate text-[12px] text-zinc-500 dark:text-zinc-400">
-                        {getLastMessagePreview(conv)}
-                      </p>
-                    </div>
+                    {(() => {
+                      const unread = conv.unreadCount ?? 0;
+                      const hasUnread = unread > 0;
+                      return (
+                        <>
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <span
+                                className={`truncate text-[13px] ${
+                                  hasUnread
+                                    ? 'font-bold text-zinc-900 dark:text-zinc-50'
+                                    : 'font-medium ' +
+                                      (isActive || isSelected
+                                        ? 'text-zinc-900 dark:text-zinc-100'
+                                        : 'text-zinc-800 dark:text-zinc-200')
+                                }`}
+                              >
+                                {conv.contact.name || conv.contact.phone || 'Desconhecido'}
+                              </span>
+                              <div className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusColors[conv.status] || 'bg-zinc-300'}`} />
+                            </div>
+                            <div className="flex shrink-0 items-center gap-1.5">
+                              <span
+                                className={`text-[10px] tabular-nums ${
+                                  hasUnread
+                                    ? 'font-semibold text-red-600 dark:text-red-400'
+                                    : 'text-zinc-400 dark:text-zinc-500'
+                                }`}
+                              >
+                                {formatTime(conv.messages[0]?.createdAt ?? conv.lastMessageAt)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="mt-0.5 flex items-center justify-between gap-1.5">
+                            <p
+                              className={`truncate text-[12px] ${
+                                hasUnread
+                                  ? 'font-semibold text-zinc-700 dark:text-zinc-200'
+                                  : 'text-zinc-500 dark:text-zinc-400'
+                              }`}
+                            >
+                              {getLastMessagePreview(conv)}
+                            </p>
+                            {hasUnread && (
+                              <span className="ml-1 inline-flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold leading-none text-white">
+                                {unread > 9 ? '9+' : unread}
+                              </span>
+                            )}
+                          </div>
+                        </>
+                      );
+                    })()}
                     {(conv.tags?.length || conv.contact.tags?.length) ? (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {conv.tags?.map((t) => (

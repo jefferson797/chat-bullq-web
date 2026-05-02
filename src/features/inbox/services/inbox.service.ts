@@ -59,6 +59,8 @@ export interface Conversation {
   messages: LastMessage[];
   tags?: TagLink[];
   _count: { messages: number };
+  /** Inbound messages newer than the current user's lastReadAt cursor. */
+  unreadCount?: number;
 }
 
 export interface MessageSender {
@@ -158,6 +160,16 @@ export const inboxService = {
   async closeConversation(conversationId: string): Promise<Conversation> {
     const { data } = await api.post(`/conversations/${conversationId}/close`);
     return data.data;
+  },
+
+  async markAsRead(
+    conversationId: string,
+    lastReadMessageId?: string,
+  ): Promise<{ ok: boolean; lastReadAt: string }> {
+    const { data } = await api.post(`/conversations/${conversationId}/read`, {
+      lastReadMessageId,
+    });
+    return data.data ?? data;
   },
 
   async reopenConversation(conversationId: string): Promise<Conversation> {
