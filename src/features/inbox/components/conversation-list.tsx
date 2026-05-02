@@ -217,7 +217,9 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
       const params: Record<string, string> = { limit: '30', page: String(pageParam) };
       if (statusFilters.size > 0) params.status = Array.from(statusFilters).join(',');
       if (debouncedSearch) params.search = debouncedSearch;
-      if (selectedChannelId) params.channelId = selectedChannelId;
+      // Channel filter is owned by the view when one is active — don't
+      // forward the local selectedChannelId so the saved filter wins.
+      if (!viewId && selectedChannelId) params.channelId = selectedChannelId;
       if (scope === 'MINE' && currentUserId) params.assignedToId = currentUserId;
       if (viewId) {
         return inboxViewsService.getConversations(viewId, params);
@@ -425,7 +427,10 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
         </Popover>
       </div>
 
-      {/* Channel selector */}
+      {/* Channel selector — hidden when an inbox view is active, since the
+          view already pins the channel(s) via its saved filters. Letting
+          the user override here would just confuse the result. */}
+      {!viewId && (
       <div className="px-3 pt-2">
         <Popover className="relative">
           <PopoverButton className="flex w-full items-center gap-2 rounded-md border border-zinc-200/80 bg-white px-2.5 py-1.5 text-left text-[13px] text-zinc-700 outline-none transition-colors hover:bg-zinc-50 data-[open]:border-primary/40 data-[open]:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:data-[open]:bg-zinc-900">
@@ -486,6 +491,7 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
           </PopoverPanel>
         </Popover>
       </div>
+      )}
 
       {/* Search + Filter */}
       <div className="flex items-center gap-1.5 px-3 pt-2 pb-2">
