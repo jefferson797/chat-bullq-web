@@ -1,7 +1,6 @@
 'use client';
 
 import {
-  MessageSquare,
   Users,
   LayoutDashboard,
   Settings,
@@ -12,6 +11,7 @@ import {
   PanelLeftClose,
   Bot,
 } from 'lucide-react';
+import { InboxTree } from '@/features/inbox-views/components/inbox-tree';
 
 import { useAuthStore } from '@/stores/auth-store';
 import { useSidebarCollapse } from '@/components/ui/sidebar-layout';
@@ -36,7 +36,6 @@ import {
 } from '@/components/ui/dropdown';
 
 const navItems = [
-  { href: '/inbox', label: 'Inbox', icon: MessageSquare },
   { href: '/contacts', label: 'Contatos', icon: Users },
   { href: '/ai-agents', label: 'Agentes IA', icon: Bot },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -98,6 +97,7 @@ export function AppSidebar() {
 
       <SidebarBody>
         <SidebarSection>
+          <InboxTree />
           {navItems.map((item) => (
             <SidebarItem key={item.href} href={item.href}>
               <item.icon className="size-5" />

@@ -2,14 +2,23 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useSearchParams } from 'next/navigation';
 import { MessageSquare } from 'lucide-react';
 import { ConversationList } from '@/features/inbox/components/conversation-list';
 import { ChatPanel } from '@/features/inbox/components/chat-panel';
 import { inboxService, type Conversation } from '@/features/inbox/services/inbox.service';
 
 export default function InboxPage() {
+  const searchParams = useSearchParams();
+  const viewId = searchParams.get('view');
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
   const queryClient = useQueryClient();
+
+  // Switching inbox view should clear the open conversation so the right
+  // panel doesn't show a thread that may not even match the new filter.
+  useEffect(() => {
+    setActiveConversation(null);
+  }, [viewId]);
 
   // Keep the active conversation object in sync with the backend (enrichment, last message, etc.)
   const { data: freshActive } = useQuery({
@@ -42,6 +51,7 @@ export default function InboxPage() {
       <ConversationList
         activeId={activeConversation?.id || null}
         onSelect={setActiveConversation}
+        viewId={viewId}
       />
 
       {activeConversation ? (

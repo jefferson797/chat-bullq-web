@@ -30,6 +30,7 @@ import {
   PopoverPanel,
 } from '@headlessui/react';
 import { inboxService, type Conversation } from '../services/inbox.service';
+import { inboxViewsService } from '@/features/inbox-views/services/inbox-views.service';
 import { channelsService } from '@/features/channels/services/channels.service';
 import { ZappfyIcon, MetaIcon, InstagramIcon } from '@/components/ui/icons';
 import { useOrgId } from '@/hooks/use-org-query-key';
@@ -89,9 +90,16 @@ const statusOptions = [
 interface ConversationListProps {
   activeId: string | null;
   onSelect: (conversation: Conversation) => void;
+  /**
+   * When set, fetches conversations through the inbox view endpoint
+   * (`/inbox-views/:id/conversations`) which applies the view's saved
+   * filters server-side. The user's local filters (status/channel/scope)
+   * still layer on top via query params.
+   */
+  viewId?: string | null;
 }
 
-export function ConversationList({ activeId, onSelect }: ConversationListProps) {
+export function ConversationList({ activeId, onSelect, viewId }: ConversationListProps) {
   const sidebarCtx = useSidebarCollapse();
   const queryClient = useQueryClient();
   const orgId = useOrgId();
@@ -204,13 +212,16 @@ export function ConversationList({ activeId, onSelect }: ConversationListProps) 
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ['conversations', orgId, statusFilterKey, debouncedSearch, selectedChannelId, scope, currentUserId],
+    queryKey: ['conversations', orgId, viewId ?? null, statusFilterKey, debouncedSearch, selectedChannelId, scope, currentUserId],
     queryFn: ({ pageParam = 1 }) => {
       const params: Record<string, string> = { limit: '30', page: String(pageParam) };
       if (statusFilters.size > 0) params.status = Array.from(statusFilters).join(',');
       if (debouncedSearch) params.search = debouncedSearch;
       if (selectedChannelId) params.channelId = selectedChannelId;
       if (scope === 'MINE' && currentUserId) params.assignedToId = currentUserId;
+      if (viewId) {
+        return inboxViewsService.getConversations(viewId, params);
+      }
       return inboxService.getConversations(params);
     },
     initialPageParam: 1,
