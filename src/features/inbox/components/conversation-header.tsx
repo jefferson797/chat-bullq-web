@@ -107,6 +107,19 @@ export function ConversationHeader({ conversation, onUpdate }: ConversationHeade
                   : 'IA pausada nesta conversa',
             );
           }}
+          onEngage={async () => {
+            await handleAction(async () => {
+              const result = await inboxService.engageAi(conversation.id);
+              if (!result.engaged) {
+                throw new Error(
+                  result.reason
+                    ? `IA não pôde engajar: ${result.reason}`
+                    : 'Não foi possível engajar a IA',
+                );
+              }
+              return result;
+            }, 'IA engajada — vai responder em segundos');
+          }}
         />
         <button
           onClick={handleSync}

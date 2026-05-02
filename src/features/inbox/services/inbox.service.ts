@@ -182,6 +182,15 @@ export const inboxService = {
     return data.data ?? data;
   },
 
+  async engageAi(
+    conversationId: string,
+  ): Promise<{ engaged: boolean; reason?: string }> {
+    const { data } = await api.post(
+      `/conversations/${conversationId}/ai/engage`,
+    );
+    return data.data ?? data;
+  },
+
   async getStatusCounts(): Promise<Record<string, number>> {
     const { data } = await api.get('/conversations/counts');
     return data.data;

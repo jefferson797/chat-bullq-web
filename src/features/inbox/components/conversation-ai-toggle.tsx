@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Bot, BotOff, Sparkles, Check } from 'lucide-react';
+import { Bot, BotOff, Sparkles, Check, Play } from 'lucide-react';
 import type { Conversation } from '../services/inbox.service';
 
 type AiOverride = boolean | null;
@@ -10,6 +10,7 @@ interface Props {
   conversation: Conversation;
   disabled?: boolean;
   onChange: (next: AiOverride) => void | Promise<void>;
+  onEngage: () => void | Promise<void>;
 }
 
 const OPTIONS: Array<{
@@ -49,7 +50,12 @@ const OPTIONS: Array<{
   },
 ];
 
-export function ConversationAiToggle({ conversation, disabled, onChange }: Props) {
+export function ConversationAiToggle({
+  conversation,
+  disabled,
+  onChange,
+  onEngage,
+}: Props) {
   const current =
     conversation.aiEnabled === undefined ? null : (conversation.aiEnabled as AiOverride);
   const [open, setOpen] = useState(false);
@@ -123,6 +129,29 @@ export function ConversationAiToggle({ conversation, disabled, onChange }: Props
               </button>
             );
           })}
+
+          <div className="border-t border-zinc-200 dark:border-zinc-700" />
+          <button
+            onClick={() => {
+              setOpen(false);
+              onEngage();
+            }}
+            disabled={disabled || current === false}
+            title={
+              current === false
+                ? 'A IA está pausada nesta conversa. Reative antes de engajar.'
+                : 'Faz a IA ler o histórico e responder agora, sem esperar nova mensagem do cliente.'
+            }
+            className="flex w-full items-start gap-3 bg-primary/5 px-3 py-2.5 text-left text-sm text-primary transition-colors hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-primary/10 dark:hover:bg-primary/20"
+          >
+            <Play className="mt-0.5 h-4 w-4 shrink-0 fill-current" />
+            <div className="flex-1">
+              <p className="font-medium">Engajar IA agora</p>
+              <p className="mt-0.5 text-[11px] leading-tight opacity-80">
+                Lê o histórico, entende o contexto e responde imediatamente.
+              </p>
+            </div>
+          </button>
         </div>
       )}
     </div>
