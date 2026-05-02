@@ -20,7 +20,10 @@ import {
   Inbox,
   Users,
   User,
+  FolderPlus,
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useSidebarCollapse } from '@/components/ui/sidebar-layout';
@@ -350,6 +353,38 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
     [selectedIds, clearSelection, invalidateConversations],
   );
 
+  // Bulk: pin the selected conversations into a brand-new inbox view.
+  // Asks for the inbox name with a quick prompt (no full dialog overhead),
+  // creates the view with conversationIds=selected, then navigates to it.
+  const router = useRouter();
+  const handleCreateInboxFromSelection = useCallback(async () => {
+    const ids = Array.from(selectedIds);
+    if (ids.length === 0) return;
+    const defaultName = `Seleção ${new Date().toLocaleDateString('pt-BR')}`;
+    const name = window.prompt(
+      `Nome da nova inbox (com as ${ids.length} conversas selecionadas):`,
+      defaultName,
+    );
+    if (!name || !name.trim()) return;
+    setBulkLoading(true);
+    try {
+      const view = await inboxViewsService.create({
+        name: name.trim(),
+        icon: 'Star',
+        color: 'amber',
+        filters: { conversationIds: ids },
+      });
+      toast.success(`Inbox "${view.name}" criada com ${ids.length} conversas`);
+      clearSelection();
+      queryClient.invalidateQueries({ queryKey: ['inbox-views'] });
+      router.push(`/inbox?view=${view.id}`);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Erro ao criar inbox');
+    } finally {
+      setBulkLoading(false);
+    }
+  }, [selectedIds, clearSelection, queryClient, router]);
+
   const getLastMessagePreview = (conv: Conversation) => {
     const last = conv.messages[0];
     if (!last) return 'Sem mensagens';
@@ -642,6 +677,14 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
             Todas
           </button>
           <div className="flex-1" />
+          <button
+            onClick={handleCreateInboxFromSelection}
+            disabled={bulkLoading}
+            title="Criar inbox com selecionadas"
+            className="flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition-colors hover:bg-amber-50 hover:text-amber-600 disabled:opacity-50 dark:hover:bg-amber-500/10"
+          >
+            <FolderPlus className="h-3.5 w-3.5" />
+          </button>
           <button
             onClick={() => handleBulkAction('assign')}
             disabled={bulkLoading}

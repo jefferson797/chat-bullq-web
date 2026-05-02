@@ -7,6 +7,9 @@ export interface InboxViewFilters {
   assignedTo?: 'me' | 'none' | 'any' | string;
   tagIds?: string[];
   lastDirection?: 'inbound' | 'outbound' | 'any';
+  /** Static list of conversations pinned to this view (set via bulk
+   *  "create inbox from selection"). Other filters still apply on top. */
+  conversationIds?: string[];
 }
 
 export interface InboxView {
