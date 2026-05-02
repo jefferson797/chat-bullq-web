@@ -1,6 +1,6 @@
 import { api } from '@/lib/api';
 
-export type ToolSource = 'BUILTIN' | 'CUSTOM_HTTP';
+export type ToolSource = 'BUILTIN' | 'CUSTOM_HTTP' | 'CUSTOM_SQL';
 
 export interface AiTool {
   id: string;
@@ -14,6 +14,11 @@ export interface AiTool {
   httpHeaders: Record<string, string> | null;
   httpBodyTemplate: string | null;
   responseMap: Record<string, string> | null;
+  sqlConnectionRef: string | null;
+  sqlQuery: string | null;
+  sqlParamMap: Array<{ name?: string; source: string }> | null;
+  sqlReadOnly: boolean;
+  sqlMaxRows: number;
   timeoutMs: number;
   isActive: boolean;
   createdAt: string;
@@ -24,11 +29,17 @@ export interface UpsertCustomToolInput {
   name: string;
   description: string;
   parameters: Record<string, unknown>;
-  httpMethod: string;
-  httpUrl: string;
+  source: 'CUSTOM_HTTP' | 'CUSTOM_SQL';
+  httpMethod?: string;
+  httpUrl?: string;
   httpHeaders?: Record<string, string>;
   httpBodyTemplate?: string;
   responseMap?: Record<string, string>;
+  sqlConnectionRef?: string;
+  sqlQuery?: string;
+  sqlParamMap?: Array<{ name?: string; source: string }>;
+  sqlReadOnly?: boolean;
+  sqlMaxRows?: number;
   timeoutMs?: number;
   isActive?: boolean;
 }

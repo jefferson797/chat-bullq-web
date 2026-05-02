@@ -39,7 +39,7 @@ export function JarvisToolsTab() {
   };
 
   const builtins = (tools ?? []).filter((t) => t.source === 'BUILTIN');
-  const customs = (tools ?? []).filter((t) => t.source === 'CUSTOM_HTTP');
+  const customs = (tools ?? []).filter((t) => t.source !== 'BUILTIN');
 
   return (
     <div className="space-y-6 p-6">
@@ -69,7 +69,7 @@ export function JarvisToolsTab() {
       {/* Custom HTTP */}
       <section>
         <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Customizadas (HTTP) — {customs.length}
+          Customizadas — {customs.length}
         </h3>
         {customs.length === 0 ? (
           <div className="rounded-xl border-2 border-dashed border-zinc-200 p-6 text-center dark:border-zinc-800">
@@ -148,6 +148,10 @@ function ToolCard({
               <span className="rounded-full bg-zinc-100 px-1.5 py-0.5 text-[10px] uppercase text-zinc-500 dark:bg-zinc-800">
                 builtin
               </span>
+            ) : tool.source === 'CUSTOM_SQL' ? (
+              <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] uppercase text-blue-700 dark:bg-blue-900/30 dark:text-blue-400">
+                SQL{tool.sqlReadOnly ? ' · RO' : ' · RW'}
+              </span>
             ) : (
               <span className="rounded-full bg-violet-100 px-1.5 py-0.5 text-[10px] uppercase text-violet-700 dark:bg-violet-900/30 dark:text-violet-400">
                 {tool.httpMethod}
@@ -160,6 +164,11 @@ function ToolCard({
           {!isBuiltin && tool.httpUrl && (
             <code className="mt-2 block truncate text-[11px] text-zinc-400">
               {tool.httpUrl}
+            </code>
+          )}
+          {tool.source === 'CUSTOM_SQL' && tool.sqlConnectionRef && (
+            <code className="mt-2 block truncate text-[11px] text-zinc-400">
+              {`{{env.${tool.sqlConnectionRef}}}`}
             </code>
           )}
         </div>
