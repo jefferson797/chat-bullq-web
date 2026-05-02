@@ -10,6 +10,7 @@ import {
   type AiAgent,
   type AgentMode,
 } from '../services/ai-agents.service';
+import { aiCatalogService } from '../services/ai-catalog.service';
 import { channelsService } from '@/features/channels/services/channels.service';
 
 interface EditAgentDialogProps {
@@ -199,6 +200,10 @@ export function EditAgentDialog({
             />
           </div>
 
+          {agent && (
+            <AgentSkillsAndTools agentId={agent.id} />
+          )}
+
           <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
             <div className="flex items-center justify-between">
               <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
@@ -303,6 +308,193 @@ export function EditAgentDialog({
               {saving ? 'Salvando…' : 'Salvar'}
             </button>
           </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AgentSkillsAndTools({ agentId }: { agentId: string }) {
+  const [skillIds, setSkillIds] = useState<string[]>([]);
+  const [extraToolIds, setExtraToolIds] = useState<string[]>([]);
+  const [savingSkills, setSavingSkills] = useState(false);
+  const [savingTools, setSavingTools] = useState(false);
+
+  const { data: skills } = useQuery({
+    queryKey: ['ai-skills'],
+    queryFn: () => aiCatalogService.listSkills(),
+  });
+  const { data: tools } = useQuery({
+    queryKey: ['ai-tools'],
+    queryFn: () => aiCatalogService.listTools(),
+  });
+  const { data: agentDetail } = useQuery({
+    queryKey: ['ai-agent', agentId],
+    queryFn: () => aiAgentsService.findOne(agentId),
+  });
+
+  // Initialize selections from server snapshot
+  useEffect(() => {
+    if (!skills) return;
+    const ids = skills
+      .filter((s) =>
+        (s.agents ?? []).some((a) => a.agent.id === agentId),
+      )
+      .map((s) => s.id);
+    setSkillIds(ids);
+  }, [skills, agentId]);
+
+  // For extra tools we need agent.extraTools — fetch via /ai-agents/:id since
+  // listSkills only knows about agents per skill, not extraTools per agent.
+  useEffect(() => {
+    if (!agentDetail) return;
+    const extraIds = (agentDetail as any).extraTools?.map(
+      (t: any) => t.toolId ?? t.tool?.id,
+    );
+    if (extraIds) setExtraToolIds(extraIds.filter(Boolean));
+  }, [agentDetail]);
+
+  const toggleSkill = (id: string) =>
+    setSkillIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  const toggleTool = (id: string) =>
+    setExtraToolIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+
+  const handleSaveSkills = async () => {
+    setSavingSkills(true);
+    try {
+      await aiCatalogService.setAgentSkills(agentId, skillIds);
+      toast.success('Skills atualizadas');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Erro');
+    } finally {
+      setSavingSkills(false);
+    }
+  };
+  const handleSaveTools = async () => {
+    setSavingTools(true);
+    try {
+      await aiCatalogService.setAgentExtraTools(agentId, extraToolIds);
+      toast.success('Tools extras atualizadas');
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Erro');
+    } finally {
+      setSavingTools(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+            Skills atribuídas ({skillIds.length})
+          </h4>
+          <button
+            onClick={handleSaveSkills}
+            disabled={savingSkills}
+            className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {savingSkills ? '…' : 'Salvar skills'}
+          </button>
+        </div>
+        <div className="mt-2 max-h-48 overflow-y-auto">
+          {(skills ?? []).map((s) => {
+            const checked = skillIds.includes(s.id);
+            return (
+              <label
+                key={s.id}
+                className={`flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-white dark:hover:bg-zinc-800 ${
+                  checked ? 'bg-white dark:bg-zinc-800' : ''
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleSkill(s.id)}
+                  className="mt-0.5 h-3.5 w-3.5"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium text-zinc-900 dark:text-zinc-100">
+                      {s.name}
+                    </span>
+                    {s.category && (
+                      <span className="rounded-full bg-zinc-200 px-1.5 py-0.5 text-[9px] uppercase text-zinc-600 dark:bg-zinc-700">
+                        {s.category}
+                      </span>
+                    )}
+                  </div>
+                  <p className="mt-0.5 text-[11px] text-zinc-500 line-clamp-1">
+                    {s.description} · {s.tools.length} tools
+                  </p>
+                </div>
+              </label>
+            );
+          })}
+          {(skills ?? []).length === 0 && (
+            <p className="px-2 py-3 text-center text-xs text-zinc-400">
+              Nenhuma skill cadastrada. Crie em Jarvis &gt; Skills.
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-zinc-200 bg-zinc-50 p-4 dark:border-zinc-800 dark:bg-zinc-900/50">
+        <div className="flex items-center justify-between">
+          <h4 className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+            Tools extras (sem skill) ({extraToolIds.length})
+          </h4>
+          <button
+            onClick={handleSaveTools}
+            disabled={savingTools}
+            className="rounded-md bg-primary px-3 py-1 text-xs font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            {savingTools ? '…' : 'Salvar tools'}
+          </button>
+        </div>
+        <p className="mt-1 text-[11px] text-zinc-500">
+          Tools individuais que o agent pode chamar. As built-in essenciais
+          (reply/transfer/tag) são incluídas automaticamente, não precisa marcar.
+        </p>
+        <div className="mt-2 max-h-48 overflow-y-auto">
+          {(tools ?? []).map((t) => {
+            const checked = extraToolIds.includes(t.id);
+            return (
+              <label
+                key={t.id}
+                className={`flex cursor-pointer items-start gap-2 rounded-md px-2 py-1.5 text-xs hover:bg-white dark:hover:bg-zinc-800 ${
+                  checked ? 'bg-white dark:bg-zinc-800' : ''
+                }`}
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => toggleTool(t.id)}
+                  className="mt-0.5 h-3.5 w-3.5"
+                />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <code className="font-mono text-zinc-900 dark:text-zinc-100">
+                      {t.name}
+                    </code>
+                    <span
+                      className={`rounded-full px-1.5 py-0.5 text-[9px] uppercase ${
+                        t.source === 'BUILTIN'
+                          ? 'bg-zinc-200 text-zinc-600 dark:bg-zinc-700'
+                          : 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400'
+                      }`}
+                    >
+                      {t.source === 'BUILTIN' ? 'builtin' : 'custom'}
+                    </span>
+                  </div>
+                </div>
+              </label>
+            );
+          })}
         </div>
       </div>
     </div>
