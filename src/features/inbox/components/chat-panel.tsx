@@ -287,12 +287,18 @@ function ContactAvatar({
 export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps) {
   const queryClient = useQueryClient();
   const bottomRef = useRef<HTMLDivElement>(null);
-  const { on, emit } = useSocket();
+  const { on, emit, onReconnect } = useSocket();
   const user = useAuthStore((s) => s.user);
 
   const { data, isLoading } = useQuery({
     queryKey: ['messages', conversation.id],
     queryFn: () => inboxService.getMessages(conversation.id),
+    // Defenses against socket gaps: refetch when the tab regains focus
+    // and on browser-level reconnect. Realtime is the happy path; these
+    // catch the case where a `message:new` was missed.
+    refetchOnWindowFocus: true,
+    refetchOnReconnect: true,
+    staleTime: 5000,
   });
 
   const messages = data?.messages || [];
@@ -311,26 +317,38 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
       const convId = payload.conversationId ?? msg.conversationId;
       if (convId !== conversation.id) return;
 
-      // Merge into the current cache instead of triggering a refetch.
-      queryClient.setQueryData<{ messages: Message[] } | undefined>(
-        ['messages', conversation.id],
-        (prev) => {
-          if (!prev) return prev;
-          const existing = prev.messages || [];
-          // Dedup by id (authoritative) or by externalId when present.
-          const match = existing.findIndex(
-            (m) =>
-              m.id === msg.id ||
-              (msg.externalId && m.externalId && m.externalId === msg.externalId),
-          );
-          if (match !== -1) {
-            const merged = [...existing];
-            merged[match] = { ...existing[match], ...msg };
-            return { ...prev, messages: merged };
-          }
-          return { ...prev, messages: [...existing, msg] };
-        },
-      );
+      // Merge into the current cache. If there's no cache yet (initial
+      // fetch still in flight, or cache evicted) we DON'T discard the
+      // event — we invalidate so the refetch picks the new message up.
+      const existingCache = queryClient.getQueryData<{ messages: Message[] }>([
+        'messages',
+        conversation.id,
+      ]);
+      if (!existingCache) {
+        queryClient.invalidateQueries({
+          queryKey: ['messages', conversation.id],
+        });
+      } else {
+        queryClient.setQueryData<{ messages: Message[] }>(
+          ['messages', conversation.id],
+          (prev) => {
+            if (!prev) return prev;
+            const existing = prev.messages || [];
+            // Dedup by id (authoritative) or by externalId when present.
+            const match = existing.findIndex(
+              (m) =>
+                m.id === msg.id ||
+                (msg.externalId && m.externalId && m.externalId === msg.externalId),
+            );
+            if (match !== -1) {
+              const merged = [...existing];
+              merged[match] = { ...existing[match], ...msg };
+              return { ...prev, messages: merged };
+            }
+            return { ...prev, messages: [...existing, msg] };
+          },
+        );
+      }
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     });
     const unsubStatus = on('message:status', (payload: any) => {
@@ -350,8 +368,23 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
         },
       );
     });
-    return () => { unsubNew?.(); unsubStatus?.(); };
-  }, [conversation.id, on, queryClient]);
+    // Reconnect: any messages that arrived during the offline window are
+    // gone from this client's perspective (socket misses events while
+    // disconnected). Refetch the open conversation's messages on every
+    // reconnect, plus the conversation list, so the user comes back to a
+    // correct view without having to F5.
+    const unsubReconnect = onReconnect(() => {
+      queryClient.invalidateQueries({
+        queryKey: ['messages', conversation.id],
+      });
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+    });
+    return () => {
+      unsubNew?.();
+      unsubStatus?.();
+      unsubReconnect?.();
+    };
+  }, [conversation.id, on, onReconnect, queryClient]);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });

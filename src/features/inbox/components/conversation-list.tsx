@@ -117,7 +117,7 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
   const sidebarCtx = useSidebarCollapse();
   const queryClient = useQueryClient();
   const orgId = useOrgId();
-  const { on } = useSocket();
+  const { on, onReconnect } = useSocket();
   const currentUserId = useAuthStore((s) => s.user?.id ?? null);
   const {
     preferences: savedPrefs,
@@ -448,13 +448,20 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
         },
       );
     });
+    // Reconnect: any events that fired while we were offline are gone, so
+    // sync the list from scratch when the socket comes back.
+    const unsubReconnect = onReconnect(() => {
+      queryClient.invalidateQueries({ queryKey: ['conversations'] });
+      queryClient.invalidateQueries({ queryKey: ['inbox-views'] });
+    });
     return () => {
       unsubNew?.();
       unsubImported?.();
       unsubUpdated?.();
       unsubRead?.();
+      unsubReconnect?.();
     };
-  }, [on, queryClient]);
+  }, [on, onReconnect, queryClient]);
 
   const handleBulkAction = useCallback(
     async (action: 'close' | 'assign' | 'reopen') => {
