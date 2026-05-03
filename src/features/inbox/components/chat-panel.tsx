@@ -419,13 +419,17 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
     new Date(date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   return (
-    <div className="flex flex-1 flex-col">
+    // min-h-0 é load-bearing: sem ele, o scroll-container interno cresce
+    // pelo conteúdo (default min-height de flex children) e empurra o
+    // ChatInput pra fora do painel — quebra dramaticamente quando o pai
+    // é um modal com altura fixa.
+    <div className="flex min-h-0 flex-1 flex-col">
       <ConversationHeader
         conversation={conversation}
         onUpdate={onConversationUpdate}
       />
 
-      <div className="flex-1 overflow-y-auto bg-zinc-50 p-4 dark:bg-zinc-900/50">
+      <div className="min-h-0 flex-1 overflow-y-auto bg-zinc-50 p-4 dark:bg-zinc-900/50">
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
