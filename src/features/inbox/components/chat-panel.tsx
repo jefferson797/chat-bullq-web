@@ -8,6 +8,13 @@ import { ChatInput } from './chat-input';
 import { ConversationHeader } from './conversation-header';
 import { StoryReplyCard } from './story-reply-card';
 import { AudioMessagePlayer } from './audio-message-player';
+import {
+  MediaImage,
+  MediaVideo,
+  MediaDocument,
+  MediaSticker,
+  MediaLocation,
+} from './media-bubbles';
 import { useSocket } from '../hooks/use-socket';
 import { useAuthStore } from '@/stores/auth-store';
 
@@ -501,30 +508,15 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
                               isOutbound={isOutbound}
                             />
                           ) : msg.type === 'IMAGE' ? (
-                            <div>
-                              {msg.content?.mediaUrl && (
-                                <img
-                                  src={msg.content.mediaUrl}
-                                  alt="Image"
-                                  className="max-h-64 rounded-lg"
-                                />
-                              )}
-                              {msg.content?.caption && (
-                                <MessageText
-                                  text={msg.content.caption}
-                                  isOutbound={isOutbound}
-                                  className="mt-1.5"
-                                />
-                              )}
-                            </div>
+                            <MediaImage message={msg} isOutbound={isOutbound} />
                           ) : msg.type === 'VIDEO' ? (
-                            <p className="text-sm">🎬 Vídeo</p>
+                            <MediaVideo message={msg} isOutbound={isOutbound} />
                           ) : msg.type === 'DOCUMENT' ? (
-                            <p className="text-sm">📎 {msg.content?.fileName || 'Documento'}</p>
+                            <MediaDocument message={msg} isOutbound={isOutbound} />
                           ) : msg.type === 'STICKER' ? (
-                            <p className="text-sm">🏷️ Sticker</p>
+                            <MediaSticker message={msg} isOutbound={isOutbound} />
                           ) : msg.type === 'LOCATION' ? (
-                            <p className="text-sm">📍 Localização</p>
+                            <MediaLocation message={msg} isOutbound={isOutbound} />
                           ) : msg.type === 'TEMPLATE' ? (
                             <TemplateMessage content={msg.content} isOutbound={isOutbound} />
                           ) : (
