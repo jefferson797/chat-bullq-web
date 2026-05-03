@@ -217,6 +217,17 @@ export const inboxService = {
     return data.data ?? data;
   },
 
+  async setActiveAgent(
+    conversationId: string,
+    agentId: string,
+  ): Promise<{ engaged: boolean; reason?: string; agentName?: string }> {
+    const { data } = await api.post(
+      `/conversations/${conversationId}/ai/set-agent`,
+      { agentId },
+    );
+    return data.data ?? data;
+  },
+
   async getStatusCounts(): Promise<Record<string, number>> {
     const { data } = await api.get('/conversations/counts');
     return data.data;

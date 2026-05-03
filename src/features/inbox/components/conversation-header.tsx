@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { ConversationAiToggle } from './conversation-ai-toggle';
 import { AssignmentPopover } from './assignment-popover';
+import { AgentPinPopover } from './agent-pin-popover';
 import { inboxService, type Conversation } from '../services/inbox.service';
 
 interface ConversationHeaderProps {
@@ -150,6 +151,7 @@ export function ConversationHeader({ conversation, onUpdate }: ConversationHeade
       </div>
 
       <div className="flex items-center gap-1.5">
+        <AgentPinPopover conversation={conversation} onChanged={onUpdate} />
         <ConversationAiToggle
           conversation={conversation}
           disabled={isLoading}
