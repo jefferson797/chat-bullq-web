@@ -10,6 +10,7 @@ import {
   ChevronUp,
   PanelLeftClose,
   Bot,
+  KanbanSquare,
 } from 'lucide-react';
 import { InboxTree } from '@/features/inbox-views/components/inbox-tree';
 
@@ -36,6 +37,7 @@ import {
 } from '@/components/ui/dropdown';
 
 const navItems = [
+  { href: '/pipelines', label: 'Pipelines', icon: KanbanSquare },
   { href: '/contacts', label: 'Contatos', icon: Users },
   { href: '/ai-agents', label: 'Agentes IA', icon: Bot },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
