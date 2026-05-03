@@ -31,6 +31,10 @@ export default function SettingsAiPage() {
   const [aiEnabled, setAiEnabled] = useState(true);
   const [aiTimezone, setAiTimezone] = useState('America/Sao_Paulo');
   const [hours, setHours] = useState<BusinessHoursConfig>(DEFAULT_BUSINESS_HOURS);
+  // 24/7: representado no banco como aiBusinessHours = null. Mantemos os
+  // valores de `hours` no state mesmo com 24/7 ON pra preservar a config
+  // anterior se o user voltar atrás.
+  const [alwaysOn, setAlwaysOn] = useState(false);
   const [outOfHoursMessage, setOutOfHoursMessage] = useState('');
   const [autoDisable, setAutoDisable] = useState(true);
   const [tokenCap, setTokenCap] = useState<string>('');
@@ -40,6 +44,7 @@ export default function SettingsAiPage() {
     if (!data) return;
     setAiEnabled(data.aiEnabled);
     setAiTimezone(data.aiTimezone);
+    setAlwaysOn(data.aiBusinessHours == null);
     setHours(data.aiBusinessHours ?? DEFAULT_BUSINESS_HOURS);
     setOutOfHoursMessage(data.aiOutOfHoursMessage ?? '');
     setAutoDisable(data.aiAutoDisableOnHuman);
@@ -52,7 +57,7 @@ export default function SettingsAiPage() {
       await aiSettingsService.update({
         aiEnabled,
         aiTimezone,
-        aiBusinessHours: hours,
+        aiBusinessHours: alwaysOn ? null : hours,
         aiOutOfHoursMessage: outOfHoursMessage,
         aiAutoDisableOnHuman: autoDisable,
         aiMonthlyTokenCap: tokenCap ? parseInt(tokenCap, 10) : null,
@@ -174,28 +179,40 @@ export default function SettingsAiPage() {
 
       {/* Business hours */}
       <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
-        <div className="flex items-center justify-between">
-          <div>
+        <div className="flex items-center justify-between gap-4">
+          <div className="min-w-0">
             <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
               Horário de atendimento
             </p>
             <p className="mt-0.5 text-xs text-zinc-500">
-              Fora desses horários a IA não responde.
+              {alwaysOn
+                ? 'IA responde a qualquer hora — 24 horas por dia, todos os dias.'
+                : 'Fora desses horários a IA não responde.'}
             </p>
           </div>
-          <select
-            value={aiTimezone}
-            onChange={(e) => setAiTimezone(e.target.value)}
-            className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
-          >
-            {TIMEZONES.map((tz) => (
-              <option key={tz} value={tz}>
-                {tz}
-              </option>
-            ))}
-          </select>
+          <div className="flex shrink-0 items-center gap-3">
+            <label className="flex cursor-pointer items-center gap-2">
+              <span className="text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                Atendimento 24/7
+              </span>
+              <Toggle checked={alwaysOn} onChange={setAlwaysOn} />
+            </label>
+            <select
+              value={aiTimezone}
+              onChange={(e) => setAiTimezone(e.target.value)}
+              disabled={alwaysOn}
+              className="rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+            >
+              {TIMEZONES.map((tz) => (
+                <option key={tz} value={tz}>
+                  {tz}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
+        {alwaysOn ? null : (
         <div className="mt-4 space-y-3">
           {WEEKDAYS.map(({ key, label }) => {
             const day = hours[key] ?? { enabled: false, windows: [] };
@@ -265,6 +282,7 @@ export default function SettingsAiPage() {
             );
           })}
         </div>
+        )}
       </section>
 
       {/* Out of hours message */}
