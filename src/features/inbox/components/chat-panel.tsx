@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, CheckCheck, Clock, AlertCircle, ExternalLink } from 'lucide-react';
+import { Check, CheckCheck, Clock, AlertCircle, ExternalLink, Reply, X } from 'lucide-react';
 import { inboxService, type Conversation, type Message } from '../services/inbox.service';
 import { ChatInput } from './chat-input';
 import { ConversationHeader } from './conversation-header';
@@ -390,15 +390,28 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages.length]);
 
+  // Reply state — quando setado, próxima msg enviada vai com replyToMessageId
+  // e a UI mostra a barra "respondendo a..." acima do input. Reseta ao
+  // trocar de conversa (via key prop do ChatPanel) ou ao mandar a msg.
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+
+  const startReply = useCallback((message: Message) => {
+    setReplyingTo(message);
+  }, []);
+  const cancelReply = useCallback(() => setReplyingTo(null), []);
+
   const handleSend = async (text: string) => {
     // The server broadcasts message:new with the QUEUED row immediately, so we
     // don't need to invalidate — the socket handler above will insert the row.
+    const replyToMessageId = replyingTo?.id;
     try {
       await inboxService.sendMessage({
         conversationId: conversation.id,
         type: 'TEXT',
         content: { text },
+        replyToMessageId,
       });
+      setReplyingTo(null);
     } catch (err) {
       // Fallback: if send fails before the socket event arrives, force a refresh.
       queryClient.invalidateQueries({ queryKey: ['messages', conversation.id] });
@@ -459,8 +472,25 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
                 return (
                   <div
                     key={msg.id}
-                    className={`flex items-end gap-2 ${isOutbound ? 'justify-end' : 'justify-start'}`}
+                    id={`msg-${msg.id}`}
+                    className={`group flex items-end gap-2 ${isOutbound ? 'justify-end' : 'justify-start'}`}
                   >
+                    {/* Botão "Responder" no hover. Aparece do lado de
+                        FORA da bolha — esquerda quando outbound (msg
+                        nossa, espaço à direita da bolha), direita quando
+                        inbound (msg do cliente, espaço à esquerda).
+                        Reactions e bolhas curtas mantêm o botão visível. */}
+                    {isOutbound && (
+                      <button
+                        type="button"
+                        onClick={() => startReply(msg)}
+                        className="self-center rounded-full bg-white p-1.5 text-zinc-400 opacity-0 shadow-sm ring-1 ring-zinc-200 transition-opacity hover:text-zinc-700 group-hover:opacity-100 dark:bg-zinc-800 dark:ring-zinc-700 dark:hover:text-zinc-100"
+                        title="Responder"
+                        aria-label="Responder esta mensagem"
+                      >
+                        <Reply className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                     {!isOutbound && (
                       <ContactAvatar
                         size="sm"
@@ -509,6 +539,50 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
                           )}
                         </div>
                       )}
+                      {/* Quote box: aparece quando a msg respondeu outra
+                          mensagem (reply nativo do WhatsApp/Cloud API ou
+                          fallback do Instagram que persistimos via
+                          metadata.replyTo). Click scrolla até a msg
+                          original quando a temos no histórico carregado. */}
+                      {msg.metadata?.replyTo &&
+                        (msg.metadata.replyTo.previewText ||
+                          msg.metadata.replyTo.senderName) && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const targetId = msg.metadata?.replyTo?.messageId;
+                              if (!targetId) return;
+                              const el = document.getElementById(
+                                `msg-${targetId}`,
+                              );
+                              if (el) {
+                                el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                                el.classList.add('ring-2', 'ring-primary');
+                                setTimeout(
+                                  () =>
+                                    el.classList.remove('ring-2', 'ring-primary'),
+                                  1500,
+                                );
+                              }
+                            }}
+                            className={`mb-1 block w-full rounded-md border-l-2 border-primary px-2 py-1 text-left text-xs ${
+                              isOutbound
+                                ? 'bg-primary/10 text-primary-foreground/80'
+                                : 'bg-zinc-100 text-zinc-600 hover:bg-zinc-200 dark:bg-zinc-800/70 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                            }`}
+                          >
+                            {msg.metadata.replyTo.senderName && (
+                              <p className="text-[10px] font-semibold opacity-80">
+                                {msg.metadata.replyTo.senderName}
+                              </p>
+                            )}
+                            {msg.metadata.replyTo.previewText && (
+                              <p className="mt-0.5 truncate">
+                                {msg.metadata.replyTo.previewText}
+                              </p>
+                            )}
+                          </button>
+                        )}
                       {msg.type === 'AUDIO' ? (
                         <>
                           <AudioMessagePlayer
@@ -584,6 +658,17 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
                         </div>
                       )}
                     </div>
+                    {!isOutbound && (
+                      <button
+                        type="button"
+                        onClick={() => startReply(msg)}
+                        className="self-center rounded-full bg-white p-1.5 text-zinc-400 opacity-0 shadow-sm ring-1 ring-zinc-200 transition-opacity hover:text-zinc-700 group-hover:opacity-100 dark:bg-zinc-800 dark:ring-zinc-700 dark:hover:text-zinc-100"
+                        title="Responder"
+                        aria-label="Responder esta mensagem"
+                      >
+                        <Reply className="h-3.5 w-3.5" />
+                      </button>
+                    )}
                   </div>
                 );
               });
@@ -593,11 +678,55 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
         )}
       </div>
 
+      {replyingTo && (
+        <ReplyPreviewBar message={replyingTo} onCancel={cancelReply} />
+      )}
       <ChatInput
         onSend={handleSend}
         onSendAudio={handleSendAudio}
         disabled={conversation.status === 'CLOSED'}
       />
+    </div>
+  );
+}
+
+/**
+ * Barra fina logo acima do ChatInput mostrando que estamos compondo uma
+ * resposta a uma mensagem específica. X cancela. Replica o visual do
+ * WhatsApp Web — borda colorida à esquerda + sender + preview truncado.
+ */
+function ReplyPreviewBar({
+  message,
+  onCancel,
+}: {
+  message: Message;
+  onCancel: () => void;
+}) {
+  const sender =
+    message.direction === 'OUTBOUND'
+      ? message.sender?.name || 'Você'
+      : (message.senderName ?? 'Cliente');
+  const c = (message.content ?? {}) as Record<string, any>;
+  const preview =
+    (typeof c.text === 'string' && c.text) ||
+    (typeof c.caption === 'string' && c.caption) ||
+    `[${(message.type || 'mensagem').toLowerCase()}]`;
+  return (
+    <div className="flex items-center gap-2 border-t border-zinc-200 bg-zinc-50 px-3 py-2 dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="flex-1 min-w-0 border-l-2 border-primary pl-2">
+        <p className="text-xs font-medium text-primary">Respondendo {sender}</p>
+        <p className="truncate text-xs text-zinc-600 dark:text-zinc-400">
+          {preview}
+        </p>
+      </div>
+      <button
+        type="button"
+        onClick={onCancel}
+        className="rounded-md p-1 text-zinc-400 hover:bg-zinc-200 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-200"
+        aria-label="Cancelar resposta"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 }

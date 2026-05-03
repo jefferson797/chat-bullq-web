@@ -82,6 +82,14 @@ export interface ReplyContext {
   externalMessageId?: string;
   story?: StoryReplyContext;
   ad?: { id?: string; title?: string };
+  /** ID interno da Message original — preenchido quando a reply foi
+   *  criada pela nossa UI (botão "Responder"). Usado pelo MessageBubble
+   *  pra fazer scroll/highlight da msg original ao clicar no quote. */
+  messageId?: string;
+  /** Trecho da msg original (até ~120 chars) — UI mostra como preview. */
+  previewText?: string;
+  /** Nome de quem enviou a msg original — UI mostra acima do preview. */
+  senderName?: string;
 }
 
 export interface TranscriptionResult {
@@ -150,6 +158,8 @@ export const inboxService = {
     conversationId: string;
     type: string;
     content: Record<string, any>;
+    /** ID interno da Message respondida — backend resolve externalId. */
+    replyToMessageId?: string;
   }): Promise<Message> {
     const { data } = await api.post('/messages', payload);
     return data.data;
