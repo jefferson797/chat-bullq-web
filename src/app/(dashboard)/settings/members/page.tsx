@@ -206,7 +206,12 @@ export default function SettingsMembersPage() {
                       )}
                     </td>
                     <td className="px-4 py-3">
-                      {m.role === 'OWNER' || m.role === 'ADMIN' ? (
+                      {/* OWNER tem acesso intrínseco a tudo (mesmo canais
+                          PRIVATE). ADMIN herda os ORG por padrão mas
+                          precisa de grant explícito pra PRIVATE — daí
+                          ganha o botão "Gerenciar" também. AGENT só vê
+                          o que tem grant. */}
+                      {m.role === 'OWNER' ? (
                         <span className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-0.5 text-[11px] text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
                           Acesso total
                         </span>
