@@ -96,63 +96,73 @@ export function AutomationBuilder({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [trigger]);
 
+  // All conditions mutators use callback form so React 19's automatic
+  // batching can compose multiple updates correctly. Without this, two
+  // updates fired in the same tick (e.g. field+value change) would race.
   const addGroup = () => {
-    setConditions({
-      ...conditions,
+    setConditions((prev) => ({
+      ...prev,
       groups: [
-        ...conditions.groups,
+        ...prev.groups,
         {
           match: 'AND',
           rules: [{ field: triggerFields[0] ?? '', op: 'equals', value: '' }],
         },
       ],
-    });
+    }));
   };
 
   const removeGroup = (gi: number) => {
-    setConditions({
-      ...conditions,
-      groups: conditions.groups.filter((_, i) => i !== gi),
-    });
+    setConditions((prev) => ({
+      ...prev,
+      groups: prev.groups.filter((_, i) => i !== gi),
+    }));
   };
 
   const updateRule = (gi: number, ri: number, patch: Partial<ConditionRule>) => {
-    const groups = conditions.groups.map((g, i) => {
-      if (i !== gi) return g;
-      return {
-        ...g,
-        rules: g.rules.map((r, j) =>
-          j === ri ? ({ ...r, ...patch } as ConditionRule) : r,
-        ),
-      };
-    });
-    setConditions({ ...conditions, groups });
+    setConditions((prev) => ({
+      ...prev,
+      groups: prev.groups.map((g, i) =>
+        i !== gi
+          ? g
+          : {
+              ...g,
+              rules: g.rules.map((r, j) =>
+                j === ri ? ({ ...r, ...patch } as ConditionRule) : r,
+              ),
+            },
+      ),
+    }));
   };
 
   const addRule = (gi: number) => {
-    const groups = conditions.groups.map((g, i) =>
-      i !== gi
-        ? g
-        : {
-            ...g,
-            rules: [
-              ...g.rules,
-              {
-                field: triggerFields[0] ?? '',
-                op: 'equals' as ConditionOperator,
-                value: '',
-              },
-            ],
-          },
-    );
-    setConditions({ ...conditions, groups });
+    setConditions((prev) => ({
+      ...prev,
+      groups: prev.groups.map((g, i) =>
+        i !== gi
+          ? g
+          : {
+              ...g,
+              rules: [
+                ...g.rules,
+                {
+                  field: triggerFields[0] ?? '',
+                  op: 'equals' as ConditionOperator,
+                  value: '',
+                },
+              ],
+            },
+      ),
+    }));
   };
 
   const removeRule = (gi: number, ri: number) => {
-    const groups = conditions.groups.map((g, i) =>
-      i !== gi ? g : { ...g, rules: g.rules.filter((_, j) => j !== ri) },
-    );
-    setConditions({ ...conditions, groups });
+    setConditions((prev) => ({
+      ...prev,
+      groups: prev.groups.map((g, i) =>
+        i !== gi ? g : { ...g, rules: g.rules.filter((_, j) => j !== ri) },
+      ),
+    }));
   };
 
   const addAction = (type: ActionType) => {
@@ -160,19 +170,36 @@ export function AutomationBuilder({
   };
 
   const updateAction = (i: number, patch: Partial<ActionDefinition>) => {
-    setActions(actions.map((a, idx) => (idx === i ? { ...a, ...patch } : a)));
+    // Callback form so two updates fired in the same tick (e.g. clearing
+    // stageId right after picking a pipeline) compose correctly. The
+    // closure-captured `actions` would otherwise be stale and the second
+    // setState would overwrite the first.
+    setActions((prev) =>
+      prev.map((a, idx) => (idx === i ? { ...a, ...patch } : a)),
+    );
   };
 
   const updateActionParam = (i: number, key: string, value: unknown) => {
-    setActions(
-      actions.map((a, idx) =>
+    setActions((prev) =>
+      prev.map((a, idx) =>
         idx === i ? { ...a, params: { ...a.params, [key]: value } } : a,
       ),
     );
   };
 
+  // Patch multiple params atomically — used for things like "pick pipeline,
+  // also clear stage" where doing two separate updateActionParam calls
+  // races the closure.
+  const updateActionParams = (i: number, patch: Record<string, unknown>) => {
+    setActions((prev) =>
+      prev.map((a, idx) =>
+        idx === i ? { ...a, params: { ...a.params, ...patch } } : a,
+      ),
+    );
+  };
+
   const removeAction = (i: number) => {
-    setActions(actions.filter((_, idx) => idx !== i));
+    setActions((prev) => prev.filter((_, idx) => idx !== i));
   };
 
   const handleSave = async () => {
@@ -394,6 +421,7 @@ export function AutomationBuilder({
                 onParamChange={(key, value) =>
                   updateActionParam(i, key, value)
                 }
+                onParamsChange={(patch) => updateActionParams(i, patch)}
                 onRemove={() => removeAction(i)}
               />
             ))}
@@ -686,6 +714,7 @@ function ActionRow({
   lookups,
   onChange,
   onParamChange,
+  onParamsChange,
   onRemove,
 }: {
   index: number;
@@ -693,6 +722,7 @@ function ActionRow({
   lookups: AutomationLookups;
   onChange: (patch: Partial<ActionDefinition>) => void;
   onParamChange: (key: string, value: unknown) => void;
+  onParamsChange: (patch: Record<string, unknown>) => void;
   onRemove: () => void;
 }) {
   return (
@@ -712,6 +742,7 @@ function ActionRow({
         action={action}
         lookups={lookups}
         onParamChange={onParamChange}
+        onParamsChange={onParamsChange}
       />
       <label className="mt-2 flex items-center gap-2 text-xs text-zinc-500">
         <input
@@ -730,10 +761,14 @@ function ActionParams({
   action,
   lookups,
   onParamChange,
+  onParamsChange,
 }: {
   action: ActionDefinition;
   lookups: AutomationLookups;
   onParamChange: (key: string, value: unknown) => void;
+  // Atomic multi-key update — required when picking a pipeline because
+  // we also need to clear the dependent stageId in the same render.
+  onParamsChange: (patch: Record<string, unknown>) => void;
 }) {
   switch (action.type) {
     case 'add_tag':
@@ -770,12 +805,11 @@ function ActionParams({
           <select
             className={inputCls}
             value={pipelineId}
-            onChange={(e) => {
-              // When pipeline changes, clear stage — old stageId might
-              // belong to a different pipeline now.
-              onParamChange('pipelineId', e.target.value);
-              onParamChange('stageId', '');
-            }}
+            onChange={(e) =>
+              // Atomic: clearing stage in a separate setState would race
+              // the pipelineId update and revert it.
+              onParamsChange({ pipelineId: e.target.value, stageId: '' })
+            }
           >
             <option value="">Selecione um pipeline…</option>
             {lookups.pipelines.map((p) => (
@@ -810,10 +844,12 @@ function ActionParams({
           <select
             className={inputCls}
             value={pipelineId}
-            onChange={(e) => {
-              onParamChange('pipelineId', e.target.value);
-              onParamChange('toStageId', '');
-            }}
+            onChange={(e) =>
+              onParamsChange({
+                pipelineId: e.target.value,
+                toStageId: '',
+              })
+            }
           >
             <option value="">Selecione um pipeline…</option>
             {lookups.pipelines.map((p) => (
