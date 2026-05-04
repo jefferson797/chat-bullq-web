@@ -65,6 +65,10 @@ export interface AiAgent {
   parentAgentId: string | null;
   department: string | null;
   squad: string | null;
+  /** Contexto operacional vivo — atualizado quase diariamente pelo operador. */
+  operationalContext: string | null;
+  /** Quando foi a última vez que `operationalContext` mudou. */
+  operationalContextUpdatedAt: string | null;
   createdAt: string;
   updatedAt: string;
   channels?: AgentChannelLink[];
@@ -85,6 +89,7 @@ export interface CreateAgentInput {
   parentAgentId?: string | null;
   department?: string | null;
   squad?: string | null;
+  operationalContext?: string | null;
 }
 
 export interface AgentRun {

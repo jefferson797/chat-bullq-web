@@ -35,6 +35,10 @@ export function EditAgentDialog({
   const [parentAgentId, setParentAgentId] = useState<string>('');
   const [department, setDepartment] = useState<string>('');
   const [squad, setSquad] = useState('');
+  const [operationalContext, setOperationalContext] = useState('');
+  const [operationalContextUpdatedAt, setOperationalContextUpdatedAt] = useState<
+    string | null
+  >(null);
   const [saving, setSaving] = useState(false);
   const [showAddChannel, setShowAddChannel] = useState(false);
   const [newChannelId, setNewChannelId] = useState('');
@@ -63,6 +67,8 @@ export function EditAgentDialog({
     setParentAgentId(agent.parentAgentId ?? '');
     setDepartment(agent.department ?? '');
     setSquad(agent.squad ?? '');
+    setOperationalContext(agent.operationalContext ?? '');
+    setOperationalContextUpdatedAt(agent.operationalContextUpdatedAt ?? null);
   }, [agent]);
 
   if (!agent) return null;
@@ -79,6 +85,7 @@ export function EditAgentDialog({
         parentAgentId: parentAgentId || null,
         department: department || null,
         squad: squad.trim() || null,
+        operationalContext: operationalContext.trim() || null,
       });
       toast.success('Agente atualizado');
       onSaved();
@@ -202,6 +209,39 @@ export function EditAgentDialog({
               rows={10}
               className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
             />
+          </div>
+
+          <div className="rounded-lg border-2 border-amber-200 bg-amber-50/50 p-4 dark:border-amber-900/40 dark:bg-amber-900/10">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+                  Contexto operacional do dia
+                </p>
+                <p className="mt-0.5 text-[11px] text-amber-700/80 dark:text-amber-200/70">
+                  Memória viva injetada no prompt — atualize quando rodar
+                  campanha, der aula, mudar oferta. Ex: &quot;Hoje 20h teve aula
+                  de Skills. Pra quem responder feedback positivo, ofereça
+                  Dominando Claude Code R$ 1.497 (link X).&quot;
+                </p>
+              </div>
+              {operationalContextUpdatedAt && (
+                <span className="shrink-0 text-[10px] uppercase tracking-wide text-amber-700 dark:text-amber-300">
+                  Atualizado{' '}
+                  {formatRelative(operationalContextUpdatedAt)}
+                </span>
+              )}
+            </div>
+            <textarea
+              value={operationalContext}
+              onChange={(e) => setOperationalContext(e.target.value)}
+              rows={4}
+              placeholder="Deixe vazio se hoje não tem nada operacional..."
+              maxLength={8000}
+              className="mt-3 w-full rounded-md border border-amber-300 bg-white px-3 py-2 text-xs dark:border-amber-900/60 dark:bg-zinc-900 dark:text-zinc-100"
+            />
+            <p className="mt-1 text-right text-[10px] text-amber-700/60 dark:text-amber-300/60">
+              {operationalContext.length}/8000
+            </p>
           </div>
 
           <div>
@@ -396,6 +436,17 @@ export function EditAgentDialog({
       </div>
     </div>
   );
+}
+
+function formatRelative(iso: string): string {
+  const d = new Date(iso);
+  const ageMs = Date.now() - d.getTime();
+  const ageHours = Math.floor(ageMs / 3_600_000);
+  if (ageHours < 1) return 'há minutos';
+  if (ageHours < 24) return `há ${ageHours}h`;
+  const ageDays = Math.floor(ageHours / 24);
+  if (ageDays < 30) return `há ${ageDays}d`;
+  return `há ${Math.floor(ageDays / 30)} meses`;
 }
 
 function AgentSkillsAndTools({ agentId }: { agentId: string }) {
