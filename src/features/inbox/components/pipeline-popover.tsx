@@ -97,6 +97,48 @@ export function PipelinePopover({ conversation, onChanged }: Props) {
     }
   };
 
+  /**
+   * Trocar de pipeline = remove o card atual + cria um novo no pipeline
+   * destino (com a 1ª stage NORMAL ou a 1ª disponível). O backend não tem
+   * "moveCard cross-pipeline" porque um card pertence a 1 pipeline + 1
+   * stage daquele pipeline; remove+create preserva a referência da
+   * conversa e o histórico do pipeline antigo (deletion cascade só limpa
+   * o card daquele kanban).
+   */
+  const handlePipelineChange = async (
+    card: ConversationCard,
+    newPipelineId: string,
+  ) => {
+    if (newPipelineId === card.pipelineId) return;
+    const target = pipelines.find((p) => p.id === newPipelineId);
+    if (!target) return;
+    const targetStages = stagesOf(newPipelineId);
+    const firstStage =
+      targetStages.find((s) => s.type === 'NORMAL') ?? targetStages[0];
+    if (!firstStage) {
+      toast.error(`"${target.name}" não tem estágios configurados`);
+      return;
+    }
+    setBusyCardId(card.id);
+    try {
+      await pipelinesService.removeCard(card.id);
+      await pipelinesService.createCard(newPipelineId, {
+        conversationId: conversation.id,
+        stageId: firstStage.id,
+      });
+      toast.success(`Movida pra "${target.name}"`);
+      invalidate();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Erro ao trocar pipeline');
+      // Reload pra refletir o estado real (caso o remove tenha passado e o
+      // create tenha falhado, o user precisa ver a conversa fora do
+      // pipeline original).
+      invalidate();
+    } finally {
+      setBusyCardId(null);
+    }
+  };
+
   const handleRemove = async (card: ConversationCard) => {
     setBusyCardId(card.id);
     try {
@@ -170,25 +212,54 @@ export function PipelinePopover({ conversation, onChanged }: Props) {
             {cards.map((card) => {
               const stages = stagesOf(card.pipelineId);
               const busy = busyCardId === card.id;
+              // Pipelines disponíveis pra trocar este card pra outro: todos
+              // os não-arquivados que (a) sejam o atual ou (b) ainda não
+              // tenham a conversa. Isso impede colidir com o "já está no
+              // pipeline" do backend.
+              const otherPipelineIds = new Set(
+                cards.filter((c) => c.id !== card.id).map((c) => c.pipelineId),
+              );
+              const swapOptions = pipelines.filter(
+                (p) =>
+                  !p.archived &&
+                  (p.id === card.pipelineId || !otherPipelineIds.has(p.id)),
+              );
               return (
                 <div
                   key={card.id}
                   className="flex items-center gap-1.5 rounded-md border border-zinc-200 bg-zinc-50/60 px-2 py-1.5 dark:border-zinc-800 dark:bg-zinc-800/40"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-medium text-zinc-900 dark:text-zinc-100">
-                      {card.pipeline.name}
-                      {card.pipeline.archived && (
-                        <span className="ml-1 text-[10px] text-zinc-400">
-                          (arquivado)
-                        </span>
-                      )}
-                    </p>
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <select
+                      value={card.pipelineId}
+                      onChange={(e) =>
+                        handlePipelineChange(card, e.target.value)
+                      }
+                      disabled={busy}
+                      title="Trocar de pipeline"
+                      className="w-full rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-xs font-medium text-zinc-900 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100"
+                    >
+                      {swapOptions.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name}
+                        </option>
+                      ))}
+                      {/* Se o pipeline atual está arquivado, ele não aparece
+                          em swapOptions (filtro !archived), então força
+                          uma option pra não perder o select. */}
+                      {card.pipeline.archived &&
+                        !swapOptions.some((p) => p.id === card.pipelineId) && (
+                          <option value={card.pipelineId}>
+                            {card.pipeline.name} (arquivado)
+                          </option>
+                        )}
+                    </select>
                     <select
                       value={card.stageId}
                       onChange={(e) => handleStageChange(card, e.target.value)}
                       disabled={busy || stages.length === 0}
-                      className="mt-1 w-full rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-[11px] text-zinc-700 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
+                      title="Trocar de estágio"
+                      className="w-full rounded border border-zinc-200 bg-white px-1.5 py-0.5 text-[11px] text-zinc-700 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-200"
                     >
                       {stages.map((s) => (
                         <option key={s.id} value={s.id}>
