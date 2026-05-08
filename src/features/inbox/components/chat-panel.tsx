@@ -56,9 +56,10 @@ function EngagementWindowBanner({
   channelType: string;
   messages: Message[];
 }) {
-  // Apenas WhatsApp tem regra de janela 24h. Instagram tem 7d (não cobrir
-  // aqui pra não confundir). Channels de teste/web ignoramos.
-  if (!channelType.startsWith('WHATSAPP')) return null;
+  // Janela 24h é regra rígida APENAS do WhatsApp Cloud API oficial (Meta).
+  // Canais Zappfy/Uazapi (WHATSAPP_ZAPPFY) não têm essa restrição — banner
+  // ali confunde mais que ajuda.
+  if (channelType !== 'WHATSAPP_OFFICIAL') return null;
   if (messages.length === 0) return null;
 
   const lastInbound = [...messages]
