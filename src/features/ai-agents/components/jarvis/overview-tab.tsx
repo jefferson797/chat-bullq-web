@@ -10,7 +10,6 @@ import {
   AlertTriangle,
   CheckCircle2,
   ArrowRightLeft,
-  Wallet,
 } from 'lucide-react';
 import {
   aiAgentsService,
@@ -44,15 +43,6 @@ export function JarvisOverviewTab() {
     queryFn: () => aiAgentsService.list(),
   });
 
-  const { data: credits } = useQuery({
-    queryKey: ['ai-openrouter-credits'],
-    queryFn: () => aiAgentsService.openrouterCredits(),
-    // Saldo muda devagar (ele só drena com runs). 1min é mais que
-    // suficiente; cobre o caso de "recarreguei agora, mostra".
-    refetchInterval: 60_000,
-    staleTime: 30_000,
-  });
-
   const agentsById = new Map((agents ?? []).map((a) => [a.id, a]));
 
   const successRate = stats?.runs.successRate ?? null;
@@ -74,57 +64,6 @@ export function JarvisOverviewTab() {
         </div>
         <PeriodSelector value={period} onChange={setPeriod} />
       </div>
-
-      {/* OpenRouter wallet — saldo da conta usada por todos os agents.
-          Tom da cor reflete urgência (vermelho < $10, amarelo < $50,
-          verde acima). Card é informativo e sempre visível pra você
-          saber quando recarregar antes de a IA cair. */}
-      {credits && (
-        <div
-          className={`flex flex-wrap items-center justify-between gap-3 rounded-xl border p-4 text-sm ${
-            credits.remainingUsd < 10
-              ? 'border-red-300 bg-red-50 text-red-900 dark:border-red-700 dark:bg-red-900/20 dark:text-red-200'
-              : credits.remainingUsd < 50
-                ? 'border-amber-300 bg-amber-50 text-amber-900 dark:border-amber-700 dark:bg-amber-900/20 dark:text-amber-200'
-                : 'border-emerald-200 bg-emerald-50/50 text-emerald-900 dark:border-emerald-800 dark:bg-emerald-900/10 dark:text-emerald-200'
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            <Wallet className="h-5 w-5 shrink-0 opacity-80" />
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-wide opacity-80">
-                Crédito OpenRouter
-              </p>
-              <p className="mt-0.5 text-lg font-semibold tabular-nums">
-                {credits.error ? '—' : fmtUsdShort(credits.remainingUsd)}
-                <span className="ml-1.5 text-[12px] font-normal opacity-70">
-                  restante
-                </span>
-              </p>
-            </div>
-          </div>
-          <div className="text-right">
-            {credits.error ? (
-              <p className="text-xs opacity-80">{credits.error}</p>
-            ) : (
-              <>
-                <p className="text-xs opacity-80">
-                  {fmtUsdShort(credits.totalUsageUsd)} já gasto ·{' '}
-                  {fmtUsdShort(credits.totalCreditsUsd)} recarregado
-                </p>
-                <a
-                  href="https://openrouter.ai/credits"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mt-1 inline-block text-xs font-medium underline underline-offset-2 opacity-90 hover:opacity-100"
-                >
-                  Recarregar →
-                </a>
-              </>
-            )}
-          </div>
-        </div>
-      )}
 
       {/* Alerts */}
       {stats?.monthlyCap.percentUsed != null &&

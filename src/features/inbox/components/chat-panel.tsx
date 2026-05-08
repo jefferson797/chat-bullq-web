@@ -17,6 +17,7 @@ import {
 } from './media-bubbles';
 import { useSocket } from '../hooks/use-socket';
 import { useAuthStore } from '@/stores/auth-store';
+import { PendingActionsList } from '../pending-actions/pending-actions-list';
 
 interface ChatPanelProps {
   conversation: Conversation;
@@ -441,6 +442,8 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
         conversation={conversation}
         onUpdate={onConversationUpdate}
       />
+
+      <PendingActionsList conversationId={conversation.id} />
 
       <div className="min-h-0 flex-1 overflow-y-auto bg-zinc-50 p-4 dark:bg-zinc-900/50">
         {isLoading ? (

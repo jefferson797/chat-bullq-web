@@ -201,19 +201,7 @@ export const aiAgentsService = {
     return data.data ?? data;
   },
 
-  async openrouterCredits(): Promise<OpenRouterCredits> {
-    const { data } = await api.get('/ai-agents/credits');
-    return data.data ?? data;
-  },
 };
-
-export interface OpenRouterCredits {
-  totalCreditsUsd: number;
-  totalUsageUsd: number;
-  remainingUsd: number;
-  ok?: boolean;
-  error?: string;
-}
 
 export type Period = '24h' | '7d' | '30d';
 
