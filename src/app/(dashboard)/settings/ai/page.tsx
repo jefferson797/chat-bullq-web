@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Sparkles, Plus, Trash2, ShieldAlert } from 'lucide-react';
+import { Sparkles, Plus, Trash2, ShieldAlert, Link2 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   aiSettingsService,
@@ -52,6 +52,9 @@ export default function SettingsAiPage() {
     DEFAULT_WATCHDOG_CONFIG,
   );
 
+  // ─── URL whitelist state ─────────────────────────
+  const [allowedDomainsText, setAllowedDomainsText] = useState('');
+
   useEffect(() => {
     if (!data) return;
     setAiEnabled(data.aiEnabled);
@@ -66,11 +69,23 @@ export default function SettingsAiPage() {
     setWatchdogAlwaysOn(data.watchdogBusinessHours == null);
     setWatchdogHours(data.watchdogBusinessHours ?? DEFAULT_BUSINESS_HOURS);
     setWatchdogConfig({ ...DEFAULT_WATCHDOG_CONFIG, ...(data.watchdogConfig ?? {}) });
+    setAllowedDomainsText((data.allowedUrlDomains ?? []).join('\n'));
   }, [data]);
 
   const handleSave = async () => {
     setSaving(true);
     try {
+      const parsedDomains = allowedDomainsText
+        .split(/[\n,]+/)
+        .map((d) =>
+          d
+            .trim()
+            .toLowerCase()
+            .replace(/^https?:\/\//, '')
+            .replace(/^www\./, '')
+            .replace(/\/.*$/, ''),
+        )
+        .filter(Boolean);
       await aiSettingsService.update({
         aiEnabled,
         aiTimezone,
@@ -82,6 +97,7 @@ export default function SettingsAiPage() {
         watchdogEnabled,
         watchdogBusinessHours: watchdogAlwaysOn ? null : watchdogHours,
         watchdogConfig: watchdogConfig,
+        allowedUrlDomains: parsedDomains.length > 0 ? parsedDomains : null,
       });
       toast.success('Configurações de IA salvas');
       qc.invalidateQueries({ queryKey: ['ai-settings'] });
@@ -415,6 +431,37 @@ Reembolso:
           placeholder="ex: 1000000"
           className="mt-3 w-48 rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
         />
+      </section>
+
+      {/* URL Whitelist */}
+      <section className="mt-4 rounded-xl border border-zinc-200 bg-white p-5 dark:border-zinc-800 dark:bg-zinc-900">
+        <div className="flex items-start gap-3">
+          <Link2 className="mt-0.5 h-5 w-5 shrink-0 text-blue-500" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-zinc-900 dark:text-zinc-100">
+              Domínios permitidos em links da IA
+            </p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Quando preenchida, a IA não consegue mandar URL com host fora
+              dessa lista — o sistema bloqueia em runtime e força a IA a
+              reescrever sem o link inventado. Match é por sufixo: <code className="font-mono text-[10px]">bravy.co</code> autoriza
+              <code className="ml-1 font-mono text-[10px]">members.bravy.co</code>. Vazia = não bloqueia (só loga aviso).
+            </p>
+            <p className="mt-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+              Recomendado preencher — IA inventou domínios inexistentes em prod.
+            </p>
+            <textarea
+              value={allowedDomainsText}
+              onChange={(e) => setAllowedDomainsText(e.target.value)}
+              rows={5}
+              placeholder={`bravy.co\ntrivapp.com.br\nalunos.bravy.school`}
+              className="mt-3 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 font-mono text-xs leading-relaxed dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
+            />
+            <p className="mt-1 text-[10px] text-zinc-400">
+              Um domínio por linha. Cole sem <code>https://</code> ou <code>www.</code> — a gente normaliza.
+            </p>
+          </div>
+        </div>
       </section>
 
       {/* Watchdog header */}

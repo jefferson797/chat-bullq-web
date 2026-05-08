@@ -42,6 +42,9 @@ export interface OrganizationAiSettings {
   watchdogEnabled: boolean;
   watchdogBusinessHours: BusinessHoursConfig | null;
   watchdogConfig: WatchdogConfig | null;
+  /** Lista de domínios permitidos em URLs que a IA pode mandar pro cliente.
+   *  null/[] = permissivo (não bloqueia, só warning). Match por sufixo. */
+  allowedUrlDomains: string[] | null;
 }
 
 export interface UpdateAiSettingsInput {
@@ -55,6 +58,7 @@ export interface UpdateAiSettingsInput {
   watchdogEnabled?: boolean;
   watchdogBusinessHours?: BusinessHoursConfig | null;
   watchdogConfig?: WatchdogConfig | null;
+  allowedUrlDomains?: string[] | null;
 }
 
 export const aiSettingsService = {
