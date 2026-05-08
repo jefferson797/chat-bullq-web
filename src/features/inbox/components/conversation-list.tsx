@@ -360,6 +360,11 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
     [data],
   );
 
+  // Total count from the paginated response — same value across pages
+  // (it's the count(where) from Postgres). Used to show "Não lidas (N)"
+  // in the active filter chip.
+  const totalCount = data?.pages?.[0]?.pagination?.total ?? 0;
+
   // Infinite scroll via IntersectionObserver
   useEffect(() => {
     const sentinel = sentinelRef.current;
@@ -1027,6 +1032,11 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
                 className="inline-flex items-center gap-1.5 rounded-full bg-primary/10 px-2.5 py-0.5 text-[11px] font-medium text-primary dark:bg-primary/20"
               >
                 {option.label}
+                {option.value === 'unread' && (
+                  <span className="rounded-full bg-primary/20 px-1.5 text-[10px] font-semibold leading-none py-[3px] dark:bg-primary/30">
+                    {totalCount}
+                  </span>
+                )}
                 <button
                   onClick={() => toggleListFilter(option.value)}
                   className="rounded-full p-0.5 transition-colors hover:bg-primary/20 dark:hover:bg-primary/30"
