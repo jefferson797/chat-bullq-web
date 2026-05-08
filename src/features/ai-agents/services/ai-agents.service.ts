@@ -190,6 +190,7 @@ export const aiAgentsService = {
   async feed(
     params: {
       agentId?: string;
+      conversationId?: string;
       period?: Period | 'all';
       status?: 'RUNNING' | 'COMPLETED' | 'FAILED' | 'SKIPPED';
       finalAction?: string;

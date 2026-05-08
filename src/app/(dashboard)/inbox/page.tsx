@@ -6,13 +6,38 @@ import { useSearchParams } from 'next/navigation';
 import { MessageSquare } from 'lucide-react';
 import { ConversationList } from '@/features/inbox/components/conversation-list';
 import { ChatPanel } from '@/features/inbox/components/chat-panel';
+import { AgentRunsSidebar } from '@/features/inbox/components/agent-runs-sidebar';
 import { inboxService, type Conversation } from '@/features/inbox/services/inbox.service';
+
+const AGENT_LOGS_PREF_KEY = 'inbox.agentLogsOpen';
 
 export default function InboxPage() {
   const searchParams = useSearchParams();
   const viewId = searchParams.get('view');
   const deepLinkConvId = searchParams.get('conversationId');
   const [activeConversation, setActiveConversation] = useState<Conversation | null>(null);
+  // Persisted across sessions via localStorage so each operator keeps their
+  // preferred layout (some live with the sidebar open, others want the chat
+  // full width). Read on mount, write whenever it flips.
+  const [agentLogsOpen, setAgentLogsOpen] = useState(false);
+  useEffect(() => {
+    try {
+      setAgentLogsOpen(localStorage.getItem(AGENT_LOGS_PREF_KEY) === '1');
+    } catch {
+      // SSR / privacy mode — fine, defaults to closed.
+    }
+  }, []);
+  const toggleAgentLogs = useCallback(() => {
+    setAgentLogsOpen((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(AGENT_LOGS_PREF_KEY, next ? '1' : '0');
+      } catch {
+        // Ignore storage failures — runtime state still flips.
+      }
+      return next;
+    });
+  }, []);
   const queryClient = useQueryClient();
 
   // Switching inbox view should clear the open conversation so the right
@@ -78,11 +103,22 @@ export default function InboxPage() {
       />
 
       {activeConversation ? (
-        <ChatPanel
-          key={activeConversation.id}
-          conversation={activeConversation}
-          onConversationUpdate={handleConversationUpdate}
-        />
+        <>
+          <ChatPanel
+            key={activeConversation.id}
+            conversation={activeConversation}
+            onConversationUpdate={handleConversationUpdate}
+            onToggleAgentLogs={toggleAgentLogs}
+            agentLogsOpen={agentLogsOpen}
+          />
+          {agentLogsOpen && (
+            <AgentRunsSidebar
+              key={`logs-${activeConversation.id}`}
+              conversationId={activeConversation.id}
+              onClose={toggleAgentLogs}
+            />
+          )}
+        </>
       ) : (
         <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-900/50">
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800">

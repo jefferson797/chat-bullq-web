@@ -12,6 +12,7 @@ import {
   Phone,
   Mail,
   Send,
+  Activity,
 } from 'lucide-react';
 import { ConversationAiToggle } from './conversation-ai-toggle';
 import { AssignmentPopover } from './assignment-popover';
@@ -22,6 +23,9 @@ import { inboxService, type Conversation } from '../services/inbox.service';
 interface ConversationHeaderProps {
   conversation: Conversation;
   onUpdate: () => void;
+  /** When provided, renders a toggle button for the agent-runs sidebar. */
+  onToggleAgentLogs?: () => void;
+  agentLogsOpen?: boolean;
 }
 
 function ChannelBadge({ type, name }: { type: string; name: string }) {
@@ -91,7 +95,12 @@ function HeaderAvatar({ name, avatarUrl }: { name: string | null; avatarUrl: str
   );
 }
 
-export function ConversationHeader({ conversation, onUpdate }: ConversationHeaderProps) {
+export function ConversationHeader({
+  conversation,
+  onUpdate,
+  onToggleAgentLogs,
+  agentLogsOpen,
+}: ConversationHeaderProps) {
   const queryClient = useQueryClient();
   const [isLoading, setIsLoading] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
@@ -188,6 +197,19 @@ export function ConversationHeader({ conversation, onUpdate }: ConversationHeade
         >
           <RefreshCw className={`h-3.5 w-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
         </button>
+        {onToggleAgentLogs && (
+          <button
+            onClick={onToggleAgentLogs}
+            title={agentLogsOpen ? 'Fechar logs do agente' : 'Abrir logs do agente'}
+            className={`inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors ${
+              agentLogsOpen
+                ? 'bg-primary/10 text-primary dark:bg-primary/15'
+                : 'text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-300'
+            }`}
+          >
+            <Activity className="h-3.5 w-3.5" />
+          </button>
+        )}
         {conversation.status !== 'CLOSED' && (
           <AssignmentPopover
             conversation={conversation}
