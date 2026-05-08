@@ -124,6 +124,12 @@ export interface Message {
   readAt: string | null;
   createdAt: string;
   metadata?: MessageMetadata | null;
+  /** Quando setado, mensagem foi deletada pra todos. UI renderiza placeholder. */
+  revokedAt?: string | null;
+  revokedBy?: string | null;
+  /** true = provider confirmou delete (cliente final viu sumir).
+   *  false = só sumiu no nosso lado (provider não suportou). */
+  revokeSucceededRemote?: boolean | null;
 }
 
 export interface PaginatedResponse<T> {
@@ -163,6 +169,21 @@ export const inboxService = {
   }): Promise<Message> {
     const { data } = await api.post('/messages', payload);
     return data.data;
+  },
+
+  /**
+   * Deleta mensagem pra todos. Tenta propagar pro provider. Resposta indica
+   * se o provider aceitou (cliente final viu sumir) ou se foi só local.
+   */
+  async revokeMessage(messageId: string): Promise<{
+    messageId: string;
+    revokedAt: string;
+    revokedBy: string;
+    succeededRemote: boolean;
+    remoteError: string | null;
+  }> {
+    const { data } = await api.delete(`/messages/${messageId}`);
+    return data.data ?? data;
   },
 
   async assignToMe(conversationId: string): Promise<Conversation> {

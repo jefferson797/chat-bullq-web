@@ -2,7 +2,8 @@
 
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, CheckCheck, Clock, AlertCircle, ExternalLink, Reply, X } from 'lucide-react';
+import { Check, CheckCheck, Clock, AlertCircle, ExternalLink, Reply, Trash2, X, Ban } from 'lucide-react';
+import { toast } from 'sonner';
 import { inboxService, type Conversation, type Message } from '../services/inbox.service';
 import { ChatInput } from './chat-input';
 import { ConversationHeader } from './conversation-header';
@@ -380,12 +381,88 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
       });
       queryClient.invalidateQueries({ queryKey: ['conversations'] });
     });
+    // Watchdog/admin revogou uma mensagem — pinta a bolha como "deletada"
+    // pra todo mundo que tá com a conversa aberta, sem refresh.
+    const unsubRevoked = on('message:revoked', (payload: any) => {
+      if (payload?.conversationId !== conversation.id) return;
+      if (!payload?.messageId) return;
+      queryClient.setQueryData<{ messages: Message[] } | undefined>(
+        ['messages', conversation.id],
+        (prev) => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            messages: prev.messages.map((m) =>
+              m.id === payload.messageId
+                ? {
+                    ...m,
+                    revokedAt: payload.revokedAt,
+                    revokedBy: payload.revokedBy,
+                    revokeSucceededRemote: payload.succeededRemote,
+                  }
+                : m,
+            ),
+          };
+        },
+      );
+    });
     return () => {
       unsubNew?.();
       unsubStatus?.();
       unsubReconnect?.();
+      unsubRevoked?.();
     };
   }, [conversation.id, on, onReconnect, queryClient]);
+
+  const handleRevoke = useCallback(
+    async (msg: Message) => {
+      const ok = window.confirm(
+        'Deletar essa mensagem pra todos? ' +
+          'Em WhatsApp via Zappfy a mensagem some no app do cliente. ' +
+          'Em WhatsApp Cloud API e Instagram, ela some apenas no Chat BullQ ' +
+          '(limitação da Meta — o cliente continua vendo no app dele).',
+      );
+      if (!ok) return;
+      try {
+        const result = await inboxService.revokeMessage(msg.id);
+        if (result.succeededRemote) {
+          toast.success('Mensagem deletada pra todos');
+        } else {
+          toast.warning(
+            'Mensagem deletada só no Chat BullQ. ' +
+              'O cliente ainda vê a mensagem no app dele (limitação do canal).',
+          );
+        }
+        // Otimista: marca local enquanto o realtime não chega
+        queryClient.setQueryData<{ messages: Message[] } | undefined>(
+          ['messages', conversation.id],
+          (prev) => {
+            if (!prev) return prev;
+            return {
+              ...prev,
+              messages: prev.messages.map((m) =>
+                m.id === msg.id
+                  ? {
+                      ...m,
+                      revokedAt: result.revokedAt,
+                      revokedBy: result.revokedBy,
+                      revokeSucceededRemote: result.succeededRemote,
+                    }
+                  : m,
+              ),
+            };
+          },
+        );
+      } catch (err: any) {
+        toast.error(
+          err?.response?.data?.message ||
+            err?.message ||
+            'Erro ao deletar mensagem',
+        );
+      }
+    },
+    [conversation.id, queryClient],
+  );
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -472,6 +549,7 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
                 const isOutbound = msg.direction === 'OUTBOUND';
                 const StatusIcon = statusIcons[msg.status] || Clock;
                 const reactions = reactionMap.get(msg.externalId || '') || [];
+                const isRevoked = !!msg.revokedAt;
                 return (
                   <div
                     key={msg.id}
@@ -482,17 +560,29 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
                         FORA da bolha — esquerda quando outbound (msg
                         nossa, espaço à direita da bolha), direita quando
                         inbound (msg do cliente, espaço à esquerda).
-                        Reactions e bolhas curtas mantêm o botão visível. */}
-                    {isOutbound && (
-                      <button
-                        type="button"
-                        onClick={() => startReply(msg)}
-                        className="self-center rounded-full bg-white p-1.5 text-zinc-400 opacity-0 shadow-sm ring-1 ring-zinc-200 transition-opacity hover:text-zinc-700 group-hover:opacity-100 dark:bg-zinc-800 dark:ring-zinc-700 dark:hover:text-zinc-100"
-                        title="Responder"
-                        aria-label="Responder esta mensagem"
-                      >
-                        <Reply className="h-3.5 w-3.5" />
-                      </button>
+                        Reactions e bolhas curtas mantêm o botão visível.
+                        Mensagens já revogadas não mostram ações. */}
+                    {isOutbound && !isRevoked && (
+                      <div className="flex items-center gap-1 self-center opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          type="button"
+                          onClick={() => startReply(msg)}
+                          className="rounded-full bg-white p-1.5 text-zinc-400 shadow-sm ring-1 ring-zinc-200 hover:text-zinc-700 dark:bg-zinc-800 dark:ring-zinc-700 dark:hover:text-zinc-100"
+                          title="Responder"
+                          aria-label="Responder esta mensagem"
+                        >
+                          <Reply className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleRevoke(msg)}
+                          className="rounded-full bg-white p-1.5 text-zinc-400 shadow-sm ring-1 ring-zinc-200 hover:text-red-600 dark:bg-zinc-800 dark:ring-zinc-700 dark:hover:text-red-400"
+                          title="Deletar pra todos"
+                          aria-label="Deletar mensagem pra todos"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     )}
                     {!isOutbound && (
                       <ContactAvatar
@@ -586,7 +676,29 @@ export function ChatPanel({ conversation, onConversationUpdate }: ChatPanelProps
                             )}
                           </button>
                         )}
-                      {msg.type === 'AUDIO' ? (
+                      {isRevoked ? (
+                        <div
+                          className={`flex items-center gap-2 rounded-2xl border border-dashed px-4 py-2.5 italic ${
+                            isOutbound
+                              ? 'rounded-br-md border-primary/40 bg-primary/5 text-primary/70'
+                              : 'rounded-bl-md border-zinc-300 bg-zinc-50 text-zinc-400 dark:border-zinc-700 dark:bg-zinc-800/40 dark:text-zinc-500'
+                          }`}
+                          title={
+                            msg.revokeSucceededRemote
+                              ? 'Mensagem deletada pra todos (provider confirmou).'
+                              : 'Deletada apenas no Chat BullQ — o cliente ainda pode estar vendo no app dele.'
+                          }
+                        >
+                          <Ban className="h-3.5 w-3.5 shrink-0" />
+                          <span className="text-sm">
+                            Mensagem deletada
+                            {msg.revokeSucceededRemote === false ? ' (só aqui)' : ''}
+                          </span>
+                          <span className="ml-auto text-[10px] opacity-70">
+                            {formatTime(msg.createdAt)}
+                          </span>
+                        </div>
+                      ) : msg.type === 'AUDIO' ? (
                         <>
                           <AudioMessagePlayer
                             message={msg}
