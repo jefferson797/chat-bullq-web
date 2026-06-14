@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Tailwind v4: por padrão `dark:` segue o prefers-color-scheme do SO.
+   Tornamos o variante baseado na classe `.dark` — como o ThemeProvider usa
+   forcedTheme="light", a classe nunca é adicionada e o modo dark fica desligado. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme inline {
   --color-background: oklch(1 0 0);
   --color-foreground: oklch(0.145 0 0);
