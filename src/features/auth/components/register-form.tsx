@@ -10,6 +10,7 @@ import { Loader2, MessageSquare, Building2 } from 'lucide-react';
 import { registerSchema, type RegisterFormData } from '../schemas/register.schema';
 import { authService } from '../services/auth.service';
 import { useAuthStore } from '@/stores/auth-store';
+import { TunerLogo } from '@/components/ui/tuner-logo';
 
 interface InviteInfo {
   email: string;
@@ -81,6 +82,28 @@ export function RegisterForm() {
     return (
       <div className="mx-auto flex w-full max-w-sm items-center justify-center py-16">
         <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Cadastro só por convite — sem token, não mostra formulário.
+  if (!inviteToken) {
+    return (
+      <div className="mx-auto w-full max-w-sm space-y-6 text-center">
+        <TunerLogo className="mx-auto h-7 w-auto text-zinc-900 dark:text-white" />
+        <div className="space-y-2">
+          <h1 className="text-lg font-semibold tracking-tight">Acesso por convite</h1>
+          <p className="text-sm text-muted-foreground">
+            As contas são criadas apenas por convite. Peça um link de convite ao
+            administrador da sua equipe.
+          </p>
+        </div>
+        <Link
+          href="/login"
+          className="inline-block text-sm font-medium text-primary hover:underline"
+        >
+          Voltar para o login
+        </Link>
       </div>
     );
   }

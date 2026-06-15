@@ -4,7 +4,6 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { toast } from 'sonner';
 import { Loader2 } from 'lucide-react';
 import { loginSchema, type LoginFormData } from '../schemas/login.schema';
@@ -102,13 +101,6 @@ export function LoginForm() {
           Entrar
         </button>
       </form>
-
-      <p className="text-center text-sm text-muted-foreground">
-        Não tem conta?{' '}
-        <Link href="/register" className="font-medium text-primary hover:underline">
-          Criar conta
-        </Link>
-      </p>
     </div>
   );
 }
