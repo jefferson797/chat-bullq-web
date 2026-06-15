@@ -1227,7 +1227,7 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
                       position: { x: e.clientX, y: e.clientY },
                     });
                   }}
-                  className={`group flex w-full gap-3 px-3 py-2.5 text-left transition-colors duration-100 ${
+                  className={`group flex w-full gap-3 border-b border-[#ECEBE6] px-3 py-2.5 text-left transition-colors duration-100 last:border-b-0 dark:border-zinc-800/50 ${
                     isSelected
                       ? 'bg-primary/[0.06] dark:bg-primary/10'
                       : isActive

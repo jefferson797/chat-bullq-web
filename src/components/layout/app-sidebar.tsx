@@ -15,6 +15,7 @@ import { PipelinesTree } from '@/features/pipelines/components/pipelines-tree';
 
 import { useAuthStore } from '@/stores/auth-store';
 import { Avatar } from '@/components/ui/avatar';
+import { TunerLogo } from '@/components/ui/tuner-logo';
 import {
   Sidebar,
   SidebarHeader,
@@ -52,6 +53,10 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
+        {/* Tuner brand mark — monochrome, inherits text color (black on light) */}
+        <div className="flex items-center px-2 pt-1 pb-2">
+          <TunerLogo className="h-[18px] w-auto text-zinc-900 dark:text-white" />
+        </div>
         <Dropdown>
           <DropdownButton className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-2.5 text-left text-sm/6 font-semibold text-zinc-950 hover:bg-zinc-950/5 dark:text-white dark:hover:bg-white/5">
             <Avatar
