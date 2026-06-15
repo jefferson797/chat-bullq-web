@@ -8,6 +8,7 @@ import { ConversationList } from '@/features/inbox/components/conversation-list'
 import { ChatPanel } from '@/features/inbox/components/chat-panel';
 import { AgentRunsSidebar } from '@/features/inbox/components/agent-runs-sidebar';
 import { inboxService, type Conversation } from '@/features/inbox/services/inbox.service';
+import { TunerLogo } from '@/components/ui/tuner-logo';
 
 const AGENT_LOGS_PREF_KEY = 'inbox.agentLogsOpen';
 
@@ -124,10 +125,8 @@ export default function InboxPage() {
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-zinc-100 dark:bg-zinc-800">
             <MessageSquare className="h-10 w-10 text-zinc-300 dark:text-zinc-600" />
           </div>
-          <h2 className="mt-4 text-lg font-semibold text-zinc-700 dark:text-zinc-300">
-            Chat BullQ
-          </h2>
-          <p className="mt-1 text-sm text-zinc-400 dark:text-zinc-500">
+          <TunerLogo className="mt-4 h-5 w-auto text-zinc-400 dark:text-zinc-500" />
+          <p className="mt-2 text-sm text-zinc-400 dark:text-zinc-500">
             Selecione uma conversa para começar
           </p>
         </div>

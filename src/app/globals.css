@@ -1,3 +1,6 @@
+/* Tuner brand fonts (Google Fonts, SIL OFL) — JetBrains Mono p/ eyebrows/labels.
+   @import precisa vir antes de tudo, inclusive do import do tailwind. */
+@import url('https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 @import "tailwindcss";
 
 /* Tailwind v4: por padrão `dark:` segue o prefers-color-scheme do SO.
@@ -33,6 +36,8 @@
   --radius-md: 0.375rem;
   --radius-lg: 0.5rem;
   --radius-xl: 0.75rem;
+  /* Tuner: JetBrains Mono em todo utilitário font-mono (eyebrows, números, rótulos) */
+  --font-mono: 'JetBrains Mono', ui-monospace, Menlo, monospace;
 }
 
 .dark {

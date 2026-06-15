@@ -53,9 +53,12 @@ export function AppSidebar() {
   return (
     <Sidebar>
       <SidebarHeader>
-        {/* Tuner brand mark — monochrome, inherits text color (black on light) */}
-        <div className="flex items-center px-2 pt-1 pb-2">
-          <TunerLogo className="h-[18px] w-auto text-zinc-900 dark:text-white" />
+        {/* Tuner brand lockup — wordmark + product eyebrow (CONVERSAS | EXATEK) */}
+        <div className="px-2 pt-1.5 pb-2.5">
+          <TunerLogo className="h-[22px] w-auto text-zinc-900 dark:text-white" />
+          <div className="mt-2 font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">
+            Conversas <span className="mx-0.5 text-zinc-300 dark:text-zinc-600">|</span> Exatek
+          </div>
         </div>
         <Dropdown>
           <DropdownButton className="flex w-full min-w-0 items-center gap-2 rounded-lg px-2 py-2.5 text-left text-sm/6 font-semibold text-zinc-950 hover:bg-zinc-950/5 dark:text-white dark:hover:bg-white/5">

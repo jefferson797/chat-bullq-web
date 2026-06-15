@@ -6,10 +6,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Loader2, MessageSquare } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { loginSchema, type LoginFormData } from '../schemas/login.schema';
 import { authService } from '../services/auth.service';
 import { useAuthStore } from '@/stores/auth-store';
+import { TunerLogo } from '@/components/ui/tuner-logo';
 
 export function LoginForm() {
   const router = useRouter();
@@ -43,11 +44,11 @@ export function LoginForm() {
 
   return (
     <div className="mx-auto w-full max-w-sm space-y-8">
-      <div className="space-y-2 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-primary">
-          <MessageSquare className="h-6 w-6 text-primary-foreground" />
+      <div className="flex flex-col items-center space-y-3 text-center">
+        <TunerLogo className="h-7 w-auto text-zinc-900 dark:text-white" />
+        <div className="font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400">
+          Conversas <span className="mx-0.5 text-zinc-300">|</span> Exatek
         </div>
-        <h1 className="text-2xl font-bold tracking-tight">Chat BullQ</h1>
         <p className="text-sm text-muted-foreground">
           Entre na sua conta para acessar o painel
         </p>
