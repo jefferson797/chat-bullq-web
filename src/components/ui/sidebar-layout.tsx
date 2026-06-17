@@ -62,7 +62,7 @@ export function SidebarLayout({
           transition
           className="fixed inset-y-0 left-0 w-full max-w-80 p-2 transition duration-300 ease-in-out data-[closed]:-translate-x-full"
         >
-          <div className="flex h-full flex-col rounded-lg bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="dark flex h-full flex-col rounded-lg bg-[#111110] shadow-sm ring-1 ring-white/10">
             <div className="-mb-3 px-4 pt-3">
               <CloseButton
                 as="button"
@@ -84,7 +84,7 @@ export function SidebarLayout({
         }`}
       >
         <div
-          className={`flex h-full flex-col border-r border-zinc-950/5 bg-white dark:border-white/5 dark:bg-zinc-900 w-64 transition-transform duration-200 ease-in-out ${
+          className={`dark flex h-full flex-col border-r border-white/10 bg-[#111110] w-64 transition-transform duration-200 ease-in-out ${
             collapsed ? "-translate-x-full" : "translate-x-0"
           }`}
         >

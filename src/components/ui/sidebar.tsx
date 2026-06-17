@@ -73,7 +73,7 @@ export function SidebarSpacer() {
 
 export function SidebarHeading({ children }: { children: ReactNode }) {
   return (
-    <h3 className="mb-1 px-2 text-xs/6 font-medium text-zinc-500 dark:text-zinc-400">
+    <h3 className="mb-1 px-2 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-zinc-500 dark:text-zinc-500">
       {children}
     </h3>
   );

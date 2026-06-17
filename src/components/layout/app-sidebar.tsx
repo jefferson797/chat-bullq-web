@@ -57,7 +57,7 @@ export function AppSidebar() {
         <div className="px-2 pt-1.5 pb-2.5">
           <TunerLogo className="h-[22px] w-auto text-zinc-900 dark:text-white" />
           <div className="mt-2 font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-zinc-400 dark:text-zinc-500">
-            Conversas <span className="mx-0.5 text-zinc-300 dark:text-zinc-600">|</span> Exatek
+            Conversas <span className="mx-1 text-zinc-300 dark:text-zinc-600">·</span> Exatek
           </div>
         </div>
         <Dropdown>
