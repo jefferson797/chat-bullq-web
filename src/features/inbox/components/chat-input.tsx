@@ -1,9 +1,12 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
-import { Send, Paperclip, Mic, Trash2, Square, Loader2 } from 'lucide-react';
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
+import { Send, Paperclip, Mic, Trash2, Square, Loader2, Zap } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQuery } from '@tanstack/react-query';
 import { useAudioRecorder } from '../hooks/use-audio-recorder';
+import { quickRepliesService } from '@/features/quick-replies/services/quick-replies.service';
+import { useOrgId } from '@/hooks/use-org-query-key';
 
 interface ChatInputProps {
   onSend: (text: string) => Promise<void>;
@@ -38,6 +41,57 @@ export function ChatInput({ onSend, onSendAudio, onSendFile, disabled }: ChatInp
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recorder = useAudioRecorder();
 
+  // ─── Respostas rápidas (gatilho "/") ──────────────────────────────
+  const orgId = useOrgId();
+  const [slashIndex, setSlashIndex] = useState(0);
+  const [slashDismissed, setSlashDismissed] = useState(false);
+
+  // só dispara a busca quando o texto é "/" + uma palavra (sem espaço/quebra)
+  const slashQuery = useMemo(() => {
+    const m = text.match(/^\/(\S*)$/);
+    return m ? m[1].toLowerCase() : null;
+  }, [text]);
+
+  const { data: quickReplies = [] } = useQuery({
+    queryKey: ['quick-replies', orgId],
+    queryFn: () => quickRepliesService.list(),
+    enabled: slashQuery !== null,
+    staleTime: 60_000,
+  });
+
+  const slashMatches = useMemo(() => {
+    if (slashQuery === null) return [];
+    const q = slashQuery;
+    return quickReplies
+      .filter(
+        (r) =>
+          r.shortcut.toLowerCase().includes(q) ||
+          r.title.toLowerCase().includes(q),
+      )
+      .slice(0, 6);
+  }, [quickReplies, slashQuery]);
+
+  const slashOpen = slashQuery !== null && !slashDismissed && slashMatches.length > 0;
+
+  useEffect(() => {
+    setSlashIndex(0);
+    setSlashDismissed(false);
+  }, [slashQuery]);
+
+  const applyQuickReply = useCallback((content: string) => {
+    setText(content);
+    setSlashDismissed(true);
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (el) {
+        el.focus();
+        el.style.height = 'auto';
+        el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+        el.setSelectionRange(content.length, content.length);
+      }
+    });
+  }, []);
+
   const handleSubmit = useCallback(async () => {
     const trimmed = text.trim();
     if (!trimmed || isSending) return;
@@ -54,6 +108,29 @@ export function ChatInput({ onSend, onSendAudio, onSendFile, disabled }: ChatInp
   }, [text, isSending, onSend]);
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    // Menu de respostas rápidas aberto: setas navegam, Enter/Tab inserem.
+    if (slashOpen) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setSlashIndex((i) => (i + 1) % slashMatches.length);
+        return;
+      }
+      if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setSlashIndex((i) => (i - 1 + slashMatches.length) % slashMatches.length);
+        return;
+      }
+      if (e.key === 'Enter' || e.key === 'Tab') {
+        e.preventDefault();
+        applyQuickReply(slashMatches[slashIndex].content);
+        return;
+      }
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        setSlashDismissed(true);
+        return;
+      }
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       handleSubmit();
@@ -190,7 +267,47 @@ export function ChatInput({ onSend, onSendAudio, onSendFile, disabled }: ChatInp
   const showMic = canRecord && !text.trim();
 
   return (
-    <div className="border-t border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+    <div className="relative border-t border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-950">
+      {slashOpen && (
+        <div className="absolute bottom-full left-3 right-3 mb-2 overflow-hidden rounded-xl border border-zinc-200 bg-white shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+          <div className="flex items-center gap-1.5 border-b border-zinc-100 px-3 py-1.5 dark:border-zinc-800">
+            <Zap className="h-3 w-3 text-primary" />
+            <span className="font-mono text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+              Respostas rápidas
+            </span>
+          </div>
+          <div className="max-h-60 overflow-y-auto py-1">
+            {slashMatches.map((qr, i) => (
+              <button
+                key={qr.id}
+                type="button"
+                onMouseEnter={() => setSlashIndex(i)}
+                onClick={() => applyQuickReply(qr.content)}
+                className={`flex w-full flex-col gap-0.5 px-3 py-2 text-left transition-colors ${
+                  i === slashIndex
+                    ? 'bg-primary/[0.06] dark:bg-primary/10'
+                    : 'hover:bg-zinc-50 dark:hover:bg-zinc-800/60'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="rounded bg-primary/10 px-1.5 py-0.5 font-mono text-[11px] font-medium text-primary">
+                    /{qr.shortcut}
+                  </span>
+                  <span className="truncate text-[13px] font-medium text-zinc-800 dark:text-zinc-200">
+                    {qr.title}
+                  </span>
+                </div>
+                <span className="truncate text-xs text-zinc-500 dark:text-zinc-400">
+                  {qr.content}
+                </span>
+              </button>
+            ))}
+          </div>
+          <div className="border-t border-zinc-100 px-3 py-1 text-[10px] text-zinc-400 dark:border-zinc-800">
+            ↑↓ navegar · Enter inserir · Esc fechar
+          </div>
+        </div>
+      )}
       <div className="flex items-end gap-2">
         <input
           ref={fileInputRef}
