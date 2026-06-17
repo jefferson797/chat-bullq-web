@@ -44,6 +44,10 @@ api.interceptors.response.use(
       }
     }
     const message = error.response?.data?.message || error.message;
-    return Promise.reject(new Error(Array.isArray(message) ? message[0] : message));
+    // Preserva a resposta original no erro normalizado — muitos componentes
+    // leem `err.response.data.message`; sem isso caíam na mensagem genérica.
+    const normalized = new Error(Array.isArray(message) ? message[0] : message);
+    (normalized as Error & { response?: unknown }).response = error.response;
+    return Promise.reject(normalized);
   },
 );
