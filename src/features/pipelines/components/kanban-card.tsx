@@ -42,6 +42,12 @@ export function KanbanCard({ card, onClick }: Props) {
 
   const value = formatBRL(card.value);
   const contact = card.contact;
+  // Nome exibido: sempre o nome ATUAL do contato (o card.title é um snapshot
+  // da criação e pode ficar desatualizado se o contato for renomeado).
+  const displayName = contact?.name || contact?.phone || card.title;
+  // Linha secundária: telefone, só quando não for igual ao nome já exibido.
+  const secondaryInfo =
+    contact?.phone && contact.phone !== displayName ? contact.phone : null;
   const assignedTo = card.assignedTo;
   const isClosed = card.status !== 'OPEN';
 
@@ -68,7 +74,7 @@ export function KanbanCard({ card, onClick }: Props) {
         </button>
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            {card.title}
+            {displayName}
           </p>
           {card.description && (
             <p className="mt-0.5 line-clamp-2 text-xs text-zinc-500 dark:text-zinc-400">
@@ -97,10 +103,10 @@ export function KanbanCard({ card, onClick }: Props) {
       </div>
 
       <div className="mt-2 flex items-center justify-between gap-2 text-[11px] text-zinc-500">
-        {contact ? (
+        {secondaryInfo ? (
           <span className="inline-flex min-w-0 items-center gap-1 truncate">
             <User className="h-3 w-3 shrink-0" />
-            <span className="truncate">{contact.name || contact.phone}</span>
+            <span className="truncate">{secondaryInfo}</span>
           </span>
         ) : (
           <span />
