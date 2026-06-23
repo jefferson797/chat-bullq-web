@@ -1,8 +1,8 @@
 'use client';
 
-import { Fragment, useEffect, useRef, useState, useCallback } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, CheckCheck, Clock, AlertCircle, ExternalLink, Reply, Trash2, X, Ban } from 'lucide-react';
+import { Check, CheckCheck, Clock, AlertCircle, ExternalLink, Reply, Trash2, X, Ban, ChevronUp, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { inboxService, type Conversation, type Message } from '../services/inbox.service';
 import { ChatInput } from './chat-input';
@@ -394,6 +394,61 @@ export function ChatPanel({
 
   const messages = data?.messages || [];
 
+  // ─── Carregar mensagens anteriores (paginação pra trás) ──────────────
+  // A query acima só traz a página 1 (50 mais recentes). Aqui acumulamos as
+  // páginas mais antigas numa lista SEPARADA — sem tocar no cache/realtime da
+  // query principal. Render = [...antigas, ...recentes].
+  const [olderMessages, setOlderMessages] = useState<Message[]>([]);
+  const [oldestPage, setOldestPage] = useState(1);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const prependAnchor = useRef<number | null>(null);
+
+  const totalPages = data?.pagination?.totalPages ?? 1;
+  const hasOlder = oldestPage < totalPages;
+
+  // Troca de conversa → zera as antigas (o ChatPanel é remontado por key,
+  // mas resetamos por garantia caso seja reutilizado sem key).
+  useEffect(() => {
+    setOlderMessages([]);
+    setOldestPage(1);
+  }, [conversation.id]);
+
+  const allMessages = useMemo(() => {
+    if (olderMessages.length === 0) return messages;
+    const recentIds = new Set(messages.map((m) => m.id));
+    const olderDeduped = olderMessages.filter((m) => !recentIds.has(m.id));
+    return [...olderDeduped, ...messages];
+  }, [olderMessages, messages]);
+
+  const loadOlder = useCallback(async () => {
+    if (loadingOlder || oldestPage >= totalPages) return;
+    const el = scrollRef.current;
+    // distância do fim — preservamos isso após prepender (ancoragem)
+    prependAnchor.current = el ? el.scrollHeight - el.scrollTop : null;
+    setLoadingOlder(true);
+    try {
+      const next = oldestPage + 1;
+      const res = await inboxService.getMessages(conversation.id, next, 50);
+      setOlderMessages((prev) => [...res.messages, ...prev]);
+      setOldestPage(next);
+    } catch {
+      toast.error('Erro ao carregar mensagens anteriores');
+    } finally {
+      setLoadingOlder(false);
+    }
+  }, [loadingOlder, oldestPage, totalPages, conversation.id]);
+
+  // Após prepender mensagens antigas, mantém a posição de scroll do usuário
+  // (sem o "pulo" pro topo). Só age quando há âncora pendente.
+  useLayoutEffect(() => {
+    if (prependAnchor.current != null && scrollRef.current) {
+      scrollRef.current.scrollTop =
+        scrollRef.current.scrollHeight - prependAnchor.current;
+      prependAnchor.current = null;
+    }
+  }, [olderMessages]);
+
   useEffect(() => {
     emit('join:conversation', { conversationId: conversation.id });
     return () => {
@@ -680,20 +735,37 @@ export function ChatPanel({
         messages={messages}
       />
 
-      <div className="min-h-0 flex-1 overflow-y-auto bg-zinc-50 p-4 dark:bg-zinc-900/50">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-zinc-50 p-4 dark:bg-zinc-900/50">
         {isLoading ? (
           <div className="flex h-full items-center justify-center">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           </div>
-        ) : messages.length === 0 ? (
+        ) : allMessages.length === 0 ? (
           <div className="flex h-full items-center justify-center text-sm text-zinc-400">
             Nenhuma mensagem ainda
           </div>
         ) : (
           <div className="mx-auto max-w-2xl space-y-2">
+            {hasOlder && (
+              <div className="flex justify-center pb-1">
+                <button
+                  type="button"
+                  onClick={loadOlder}
+                  disabled={loadingOlder}
+                  className="inline-flex items-center gap-1.5 rounded-full border border-zinc-200 bg-white px-3 py-1 text-[12px] font-medium text-zinc-600 shadow-sm transition-colors hover:bg-zinc-50 disabled:opacity-60 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                >
+                  {loadingOlder ? (
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <ChevronUp className="h-3.5 w-3.5" />
+                  )}
+                  {loadingOlder ? 'Carregando…' : 'Carregar mensagens anteriores'}
+                </button>
+              </div>
+            )}
             {(() => {
               const reactionMap = new Map<string, string[]>();
-              for (const msg of messages) {
+              for (const msg of allMessages) {
                 if (msg.type === 'REACTION' && msg.content?.reaction) {
                   const targetId = msg.content.reaction.targetMessageId;
                   if (targetId) {
@@ -703,7 +775,7 @@ export function ChatPanel({
                   }
                 }
               }
-              const visibleMessages = messages.filter((m) => m.type !== 'REACTION');
+              const visibleMessages = allMessages.filter((m) => m.type !== 'REACTION');
               let lastDateKey = '';
               return visibleMessages.map((msg) => {
                 const isOutbound = msg.direction === 'OUTBOUND';
