@@ -2,12 +2,13 @@
 
 import { Fragment, useEffect, useLayoutEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Check, CheckCheck, Clock, AlertCircle, ExternalLink, Reply, Trash2, X, Ban, ChevronUp, Loader2 } from 'lucide-react';
+import { Check, CheckCheck, Clock, AlertCircle, ExternalLink, Reply, Forward, Trash2, X, Ban, ChevronUp, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { inboxService, type Conversation, type Message } from '../services/inbox.service';
 import { ChatInput } from './chat-input';
 import { ConversationHeader } from './conversation-header';
 import { StoryReplyCard } from './story-reply-card';
+import { ForwardMessageDialog } from './forward-message-dialog';
 import { AudioMessagePlayer } from './audio-message-player';
 import {
   MediaImage,
@@ -632,6 +633,13 @@ export function ChatPanel({
   }, []);
   const cancelReply = useCallback(() => setReplyingTo(null), []);
 
+  // Forward state — qual mensagem está sendo encaminhada (abre o picker de
+  // conversa de destino). null = dialog fechado.
+  const [forwarding, setForwarding] = useState<Message | null>(null);
+  const startForward = useCallback((message: Message) => {
+    setForwarding(message);
+  }, []);
+
   const handleSend = async (text: string) => {
     const replyToMessageId = replyingTo?.id;
     try {
@@ -815,6 +823,15 @@ export function ChatPanel({
                           aria-label="Responder esta mensagem"
                         >
                           <Reply className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startForward(msg)}
+                          className="rounded-full bg-white p-1.5 text-zinc-400 shadow-sm ring-1 ring-zinc-200 hover:text-zinc-700 dark:bg-zinc-800 dark:ring-zinc-700 dark:hover:text-zinc-100"
+                          title="Encaminhar"
+                          aria-label="Encaminhar esta mensagem"
+                        >
+                          <Forward className="h-3.5 w-3.5" />
                         </button>
                         <button
                           type="button"
@@ -1033,15 +1050,26 @@ export function ChatPanel({
                       )}
                     </div>
                     {!isOutbound && (
-                      <button
-                        type="button"
-                        onClick={() => startReply(msg)}
-                        className="self-center rounded-full bg-white p-1.5 text-zinc-400 opacity-0 shadow-sm ring-1 ring-zinc-200 transition-opacity hover:text-zinc-700 group-hover:opacity-100 dark:bg-zinc-800 dark:ring-zinc-700 dark:hover:text-zinc-100"
-                        title="Responder"
-                        aria-label="Responder esta mensagem"
-                      >
-                        <Reply className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex items-center gap-1 self-center opacity-0 transition-opacity group-hover:opacity-100">
+                        <button
+                          type="button"
+                          onClick={() => startReply(msg)}
+                          className="rounded-full bg-white p-1.5 text-zinc-400 shadow-sm ring-1 ring-zinc-200 hover:text-zinc-700 dark:bg-zinc-800 dark:ring-zinc-700 dark:hover:text-zinc-100"
+                          title="Responder"
+                          aria-label="Responder esta mensagem"
+                        >
+                          <Reply className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => startForward(msg)}
+                          className="rounded-full bg-white p-1.5 text-zinc-400 shadow-sm ring-1 ring-zinc-200 hover:text-zinc-700 dark:bg-zinc-800 dark:ring-zinc-700 dark:hover:text-zinc-100"
+                          title="Encaminhar"
+                          aria-label="Encaminhar esta mensagem"
+                        >
+                          <Forward className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     )}
                   </div>
                   </Fragment>
@@ -1062,8 +1090,34 @@ export function ChatPanel({
         onSendFile={handleSendFile}
         disabled={conversation.status === 'CLOSED'}
       />
+      <ForwardMessageDialog
+        open={!!forwarding}
+        messageId={forwarding?.id ?? null}
+        previewLabel={forwarding ? forwardPreviewLabel(forwarding) : undefined}
+        currentConversationId={conversation.id}
+        onClose={() => setForwarding(null)}
+      />
     </div>
   );
+}
+
+/** Resumo curto do que está sendo encaminhado, pro header do dialog. */
+function forwardPreviewLabel(msg: Message): string {
+  const c = (msg.content ?? {}) as Record<string, any>;
+  if (msg.type === 'TEXT') {
+    const t = typeof c.text === 'string' ? c.text : '';
+    return t.length > 80 ? `${t.slice(0, 80)}…` : t || 'Mensagem de texto';
+  }
+  const labels: Record<string, string> = {
+    IMAGE: '📷 Imagem',
+    VIDEO: '🎥 Vídeo',
+    AUDIO: '🎤 Áudio',
+    DOCUMENT: '📄 Documento',
+    STICKER: 'Figurinha',
+  };
+  const base = labels[msg.type] ?? msg.type;
+  const caption = typeof c.caption === 'string' && c.caption ? ` · ${c.caption}` : '';
+  return `${base}${caption}`;
 }
 
 /**

@@ -175,6 +175,20 @@ export const inboxService = {
   },
 
   /**
+   * Encaminha uma mensagem (texto ou mídia) para outra conversa, igual ao
+   * "Encaminhar" do WhatsApp. Backend reaproveita o conteúdo da origem.
+   */
+  async forwardMessage(
+    messageId: string,
+    targetConversationId: string,
+  ): Promise<Message> {
+    const { data } = await api.post(`/messages/${messageId}/forward`, {
+      conversationId: targetConversationId,
+    });
+    return data.data;
+  },
+
+  /**
    * Deleta mensagem pra todos. Tenta propagar pro provider. Resposta indica
    * se o provider aceitou (cliente final viu sumir) ou se foi só local.
    */

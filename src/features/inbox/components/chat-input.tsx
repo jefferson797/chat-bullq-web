@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback, useMemo, useEffect } from 'react';
-import { Send, Paperclip, Mic, Trash2, Square, Loader2, Zap } from 'lucide-react';
+import { Send, Paperclip, Mic, Trash2, Square, Loader2, Zap, Smile } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuery } from '@tanstack/react-query';
 import { useAudioRecorder } from '../hooks/use-audio-recorder';
@@ -31,6 +31,35 @@ const FILE_ACCEPT = [
   '.csv',
   '.zip',
 ].join(',');
+
+// Paleta curada de emojis "comerciais" pro atendimento — joia, carinhas,
+// check/x, e reforços positivos. Ordem pensada pro uso do dia a dia de vendas.
+const EMOJI_PALETTE: { char: string; label: string }[] = [
+  { char: '👍', label: 'joia' },
+  { char: '👎', label: 'não' },
+  { char: '✅', label: 'check verde' },
+  { char: '❌', label: 'x errado' },
+  { char: '😊', label: 'sorrindo' },
+  { char: '🙂', label: 'tranquilo' },
+  { char: '😉', label: 'piscadinha' },
+  { char: '😅', label: 'alívio' },
+  { char: '🤝', label: 'acordo' },
+  { char: '🙏', label: 'obrigado' },
+  { char: '👏', label: 'parabéns' },
+  { char: '💪', label: 'força' },
+  { char: '🔥', label: 'top' },
+  { char: '🎉', label: 'comemorar' },
+  { char: '❤️', label: 'coração' },
+  { char: '👌', label: 'ok' },
+  { char: '⏰', label: 'horário' },
+  { char: '📌', label: 'importante' },
+  { char: '⚠️', label: 'atenção' },
+  { char: '💰', label: 'dinheiro' },
+  { char: '📦', label: 'pedido' },
+  { char: '🚀', label: 'bora' },
+  { char: '✔️', label: 'confirmado' },
+  { char: '😎', label: 'estilo' },
+];
 
 export function ChatInput({ onSend, onSendAudio, onSendFile, disabled }: ChatInputProps) {
   const [text, setText] = useState('');
@@ -91,6 +120,30 @@ export function ChatInput({ onSend, onSendAudio, onSendFile, disabled }: ChatInp
       }
     });
   }, []);
+
+  // Emoji picker — insere o emoji na posição do cursor (mantém o texto já
+  // digitado em volta) e devolve o foco pro textarea.
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const insertEmoji = useCallback(
+    (emoji: string) => {
+      const el = textareaRef.current;
+      const start = el?.selectionStart ?? text.length;
+      const end = el?.selectionEnd ?? text.length;
+      const next = text.slice(0, start) + emoji + text.slice(end);
+      setText(next);
+      requestAnimationFrame(() => {
+        const e2 = textareaRef.current;
+        if (e2) {
+          e2.focus();
+          const pos = start + emoji.length;
+          e2.setSelectionRange(pos, pos);
+          e2.style.height = 'auto';
+          e2.style.height = Math.min(e2.scrollHeight, 160) + 'px';
+        }
+      });
+    },
+    [text],
+  );
 
   const handleSubmit = useCallback(async () => {
     const trimmed = text.trim();
@@ -308,6 +361,36 @@ export function ChatInput({ onSend, onSendAudio, onSendFile, disabled }: ChatInp
           </div>
         </div>
       )}
+      {emojiOpen && (
+        <>
+          {/* Backdrop transparente: clicar fora fecha o picker. */}
+          <button
+            type="button"
+            aria-hidden
+            tabIndex={-1}
+            onClick={() => setEmojiOpen(false)}
+            className="fixed inset-0 z-10 cursor-default"
+          />
+          <div className="absolute bottom-full left-3 z-20 mb-2 w-72 rounded-xl border border-zinc-200 bg-white p-2 shadow-lg dark:border-zinc-700 dark:bg-zinc-900">
+            <div className="mb-1 px-1 font-mono text-[10px] font-medium uppercase tracking-wide text-zinc-400">
+              Emojis
+            </div>
+            <div className="grid grid-cols-8 gap-0.5">
+              {EMOJI_PALETTE.map((e) => (
+                <button
+                  key={e.char}
+                  type="button"
+                  title={e.label}
+                  onClick={() => insertEmoji(e.char)}
+                  className="flex h-8 w-8 items-center justify-center rounded-lg text-xl hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                >
+                  {e.char}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
       <div className="flex items-end gap-2">
         <input
           ref={fileInputRef}
@@ -328,6 +411,18 @@ export function ChatInput({ onSend, onSendAudio, onSendFile, disabled }: ChatInp
           ) : (
             <Paperclip className="h-5 w-5" />
           )}
+        </button>
+        <button
+          type="button"
+          onClick={() => setEmojiOpen((v) => !v)}
+          className={`mb-1 rounded-lg p-2 hover:bg-zinc-100 dark:hover:bg-zinc-800 ${
+            emojiOpen
+              ? 'text-primary'
+              : 'text-zinc-400 hover:text-zinc-600'
+          }`}
+          aria-label="Inserir emoji"
+        >
+          <Smile className="h-5 w-5" />
         </button>
         <textarea
           ref={textareaRef}
