@@ -123,10 +123,37 @@ export function MediaDocument({ message, isOutbound }: MediaProps) {
   const caption = message.content?.caption as string | undefined;
   const Icon = pickDocIcon(mimeType, filename);
 
-  const onClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
+  const [downloading, setDownloading] = useState(false);
+
+  // Download direto: baixa o arquivo como blob e dispara o save na máquina,
+  // sem abrir aba nova. O atributo `download` nativo é ignorado em URLs
+  // cross-origin (a mídia vem do domínio da API), então fazemos via fetch +
+  // object URL. Se o fetch falhar (ex.: CORS antigo), cai pro abrir direto.
+  const onClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
+    e.preventDefault();
     if (!url) {
-      e.preventDefault();
       void retry();
+      return;
+    }
+    if (downloading) return;
+    try {
+      setDownloading(true);
+      const res = await fetch(url);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(objUrl);
+    } catch {
+      // Fallback: abre numa aba nova pra o usuário não ficar sem o arquivo.
+      window.open(url, '_blank', 'noopener,noreferrer');
+    } finally {
+      setDownloading(false);
     }
   };
 
@@ -135,10 +162,9 @@ export function MediaDocument({ message, isOutbound }: MediaProps) {
       <a
         href={url || '#'}
         onClick={onClick}
-        target="_blank"
         rel="noopener noreferrer"
         download={filename}
-        className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
+        className={`flex cursor-pointer items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors ${
           isOutbound
             ? 'border-primary-foreground/20 bg-primary-foreground/10 hover:bg-primary-foreground/15'
             : 'border-zinc-200 bg-zinc-50 hover:bg-zinc-100 dark:border-zinc-700 dark:bg-zinc-800/60 dark:hover:bg-zinc-800'
@@ -156,10 +182,16 @@ export function MediaDocument({ message, isOutbound }: MediaProps) {
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-medium">{filename}</p>
           <p className={`truncate text-[11px] ${isOutbound ? 'opacity-70' : 'text-zinc-500 dark:text-zinc-400'}`}>
-            {loading ? 'Preparando download…' : error ? 'Falhou — toque pra tentar de novo' : (mimeType || 'Arquivo')}
+            {downloading
+              ? 'Baixando…'
+              : loading
+                ? 'Preparando download…'
+                : error
+                  ? 'Falhou — toque pra tentar de novo'
+                  : (mimeType || 'Arquivo')}
           </p>
         </div>
-        {loading ? (
+        {loading || downloading ? (
           <Loader2 className="h-4 w-4 shrink-0 animate-spin opacity-60" />
         ) : (
           <Download className="h-4 w-4 shrink-0 opacity-60" />
