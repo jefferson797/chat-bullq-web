@@ -3,6 +3,9 @@ import { api } from '@/lib/api';
 export interface Contact {
   id: string;
   name: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  company: string | null;
   phone: string | null;
   email: string | null;
   avatarUrl: string | null;

@@ -13,11 +13,13 @@ import {
   Mail,
   Send,
   Activity,
+  UserPlus,
 } from 'lucide-react';
 import { ConversationAiToggle } from './conversation-ai-toggle';
 import { AssignmentPopover } from './assignment-popover';
 import { AgentPinPopover } from './agent-pin-popover';
 import { PipelinePopover } from './pipeline-popover';
+import { CompleteContactDialog } from './complete-contact-dialog';
 import { inboxService, type Conversation } from '../services/inbox.service';
 
 interface ConversationHeaderProps {
@@ -138,6 +140,7 @@ export function ConversationHeader({
       setIsLoading(false);
     }
   };
+  const [cadastroOpen, setCadastroOpen] = useState(false);
 
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
@@ -161,6 +164,14 @@ export function ConversationHeader({
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+        <button
+          type="button"
+          onClick={() => setCadastroOpen(true)}
+          title="Completar cadastro do cliente"
+          className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 px-2.5 py-1.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+        >
+          <UserPlus className="h-3.5 w-3.5" /> Cadastro
+        </button>
         <AgentPinPopover conversation={conversation} onChanged={onUpdate} />
         <ConversationAiToggle
           conversation={conversation}
@@ -248,6 +259,14 @@ export function ConversationHeader({
           </button>
         )}
       </div>
+      {cadastroOpen && (
+        <CompleteContactDialog
+          contactId={conversation.contact.id}
+          open={cadastroOpen}
+          onClose={() => setCadastroOpen(false)}
+          onUpdated={onUpdate}
+        />
+      )}
     </div>
   );
 }
