@@ -149,10 +149,21 @@ export default function SettingsQuickRepliesPage() {
           <textarea
             value={content}
             onChange={(e) => setContent(e.target.value)}
-            placeholder="Olá! Tudo bem? Como posso te ajudar hoje?"
+            placeholder="Olá {{primeiro_nome}}! Tudo bem? Como posso te ajudar hoje?"
             rows={3}
             className={`${inputCls} resize-y`}
           />
+          <p className="mt-1 text-xs text-zinc-500">
+            Dica: use{' '}
+            <kbd className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              {'{{nome}}'}
+            </kbd>{' '}
+            ou{' '}
+            <kbd className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[11px] text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+              {'{{primeiro_nome}}'}
+            </kbd>{' '}
+            — trocamos pelo nome do contato ao inserir a resposta.
+          </p>
         </div>
         <div className="flex justify-end">
           <button

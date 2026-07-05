@@ -1089,6 +1089,7 @@ export function ChatPanel({
         onSendAudio={handleSendAudio}
         onSendFile={handleSendFile}
         disabled={conversation.status === 'CLOSED'}
+        contactName={conversation.contact.name}
       />
       <ForwardMessageDialog
         open={!!forwarding}

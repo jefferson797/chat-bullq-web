@@ -29,6 +29,7 @@ export function EditChannelDialog({
   const [name, setName] = useState('');
   const [config, setConfig] = useState<Record<string, string>>({});
   const [webhookSecret, setWebhookSecret] = useState('');
+  const [aiEnabled, setAiEnabled] = useState<boolean | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -42,6 +43,7 @@ export function EditChannelDialog({
     }
     setConfig(flat);
     setWebhookSecret(channel.webhookSecret ?? '');
+    setAiEnabled(channel.aiEnabled);
   }, [channel]);
 
   if (!channel) return null;
@@ -71,6 +73,7 @@ export function EditChannelDialog({
         name: name.trim(),
         config: merged,
         webhookSecret: webhookSecret.trim() || undefined,
+        aiEnabled,
       });
       toast.success('Credenciais atualizadas');
       onSaved();
@@ -143,6 +146,38 @@ export function EditChannelDialog({
               onChange={(e) => setWebhookSecret(e.target.value)}
               className={inputCls}
             />
+          </div>
+
+          <div className="space-y-1.5">
+            <label className={labelCls}>Atendimento por IA neste canal</label>
+            <div className="grid grid-cols-3 gap-2">
+              {([
+                { val: null, label: 'Segue global', hint: 'Usa a config geral da org' },
+                { val: true, label: 'Sempre ligada', hint: 'IA responde neste número' },
+                { val: false, label: 'Sempre desligada', hint: '100% humano neste número' },
+              ] as { val: boolean | null; label: string; hint: string }[]).map((opt) => {
+                const active = aiEnabled === opt.val;
+                return (
+                  <button
+                    key={String(opt.val)}
+                    type="button"
+                    onClick={() => setAiEnabled(opt.val)}
+                    title={opt.hint}
+                    className={`rounded-md border px-2 py-2 text-center text-xs font-medium transition-colors ${
+                      active
+                        ? 'border-primary bg-primary/10 text-primary'
+                        : 'border-zinc-300 text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[11px] text-zinc-500">
+              Deixe a IA fazer a triagem no número de entrada e mantenha os
+              números dos vendedores 100% humanos — sem mexer no interruptor global.
+            </p>
           </div>
         </div>
 

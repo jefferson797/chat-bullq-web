@@ -13,6 +13,8 @@ interface ChatInputProps {
   onSendAudio?: (blob: Blob) => Promise<void>;
   onSendFile?: (file: File) => Promise<void>;
   disabled?: boolean;
+  /** Nome do contato da conversa — usado pra substituir {{nome}} nas respostas rápidas. */
+  contactName?: string | null;
 }
 
 // Espelha o whitelist do backend (UploadsService.ALLOWED_MEDIA_MIME) — o
@@ -61,7 +63,7 @@ const EMOJI_PALETTE: { char: string; label: string }[] = [
   { char: '😎', label: 'estilo' },
 ];
 
-export function ChatInput({ onSend, onSendAudio, onSendFile, disabled }: ChatInputProps) {
+export function ChatInput({ onSend, onSendAudio, onSendFile, disabled, contactName }: ChatInputProps) {
   const [text, setText] = useState('');
   const [isSending, setIsSending] = useState(false);
   const [isSendingAudio, setIsSendingAudio] = useState(false);
@@ -107,19 +109,45 @@ export function ChatInput({ onSend, onSendAudio, onSendFile, disabled }: ChatInp
     setSlashDismissed(false);
   }, [slashQuery]);
 
-  const applyQuickReply = useCallback((content: string) => {
-    setText(content);
-    setSlashDismissed(true);
-    requestAnimationFrame(() => {
-      const el = textareaRef.current;
-      if (el) {
-        el.focus();
-        el.style.height = 'auto';
-        el.style.height = Math.min(el.scrollHeight, 160) + 'px';
-        el.setSelectionRange(content.length, content.length);
+  // Substitui variáveis da resposta rápida pelo dado do contato:
+  //   {{nome}} → nome completo · {{primeiro_nome}} → primeiro nome.
+  // Sem nome cadastrado, remove o token e limpa espaço/pontuação órfãos
+  // (pra não sair "Olá , tudo bem?").
+  const substituteVars = useCallback(
+    (content: string): string => {
+      const full = (contactName ?? '').trim();
+      const first = full.split(/\s+/)[0] ?? '';
+      let out = content
+        .replace(/\{\{\s*(primeiro_nome|primeironome)\s*\}\}/gi, first)
+        .replace(/\{\{\s*nome\s*\}\}/gi, full);
+      if (!full) {
+        out = out
+          .replace(/\s{2,}/g, ' ')
+          .replace(/\s+([,.!?;:])/g, '$1')
+          .trim();
       }
-    });
-  }, []);
+      return out;
+    },
+    [contactName],
+  );
+
+  const applyQuickReply = useCallback(
+    (rawContent: string) => {
+      const content = substituteVars(rawContent);
+      setText(content);
+      setSlashDismissed(true);
+      requestAnimationFrame(() => {
+        const el = textareaRef.current;
+        if (el) {
+          el.focus();
+          el.style.height = 'auto';
+          el.style.height = Math.min(el.scrollHeight, 160) + 'px';
+          el.setSelectionRange(content.length, content.length);
+        }
+      });
+    },
+    [substituteVars],
+  );
 
   // Emoji picker — insere o emoji na posição do cursor (mantém o texto já
   // digitado em volta) e devolve o foco pro textarea.
