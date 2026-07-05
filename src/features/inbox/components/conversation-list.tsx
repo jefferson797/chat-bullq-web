@@ -66,11 +66,13 @@ function ListAvatar({ name, avatarUrl }: { name: string | null; avatarUrl: strin
   );
 }
 
-type ScopeFilter = 'ALL' | 'MINE';
+type ScopeFilter = 'ALL' | 'MINE' | 'UNASSIGNED';
 
-const scopeOptions: { label: string; value: ScopeFilter; icon: React.ElementType }[] = [
-  { label: 'Todas as conversas', value: 'ALL', icon: Users },
+// Ordem: foco no próprio primeiro; "Todas" só aparece p/ supervisor (OWNER/ADMIN).
+const scopeOptions: { label: string; value: ScopeFilter; icon: React.ElementType; adminOnly?: boolean }[] = [
   { label: 'Minhas conversas', value: 'MINE', icon: User },
+  { label: 'Sem dono', value: 'UNASSIGNED', icon: Inbox },
+  { label: 'Todas as conversas', value: 'ALL', icon: Users, adminOnly: true },
 ];
 
 const channelIcons: Record<string, React.ElementType> = {
@@ -127,6 +129,15 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
   const orgId = useOrgId();
   const { on, onReconnect } = useSocket();
   const currentUserId = useAuthStore((s) => s.user?.id ?? null);
+  // Papel na org ativa — "Todas as conversas" é só p/ supervisor (OWNER/ADMIN).
+  const role = useAuthStore(
+    (s) => s.organizations.find((o) => o.id === s.activeOrgId)?.role ?? null,
+  );
+  const isSupervisor = role === 'OWNER' || role === 'ADMIN';
+  const visibleScopes = useMemo(
+    () => scopeOptions.filter((o) => !o.adminOnly || isSupervisor),
+    [isSupervisor],
+  );
   const {
     preferences: savedPrefs,
     isLoaded: prefsLoaded,
@@ -147,7 +158,7 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
     (archivedOnly ? 1 : 0) +
     (showGroups ? 1 : 0) +
     selectedTagIds.length;
-  const [scope, setScope] = useState<ScopeFilter>('ALL');
+  const [scope, setScope] = useState<ScopeFilter>('MINE');
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const hydratedRef = useRef(false);
@@ -165,7 +176,11 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
   useEffect(() => {
     if (!prefsLoaded || hydratedRef.current) return;
     hydratedRef.current = true;
-    if (savedPrefs.scope === 'MINE' || savedPrefs.scope === 'ALL') {
+    if (
+      savedPrefs.scope === 'MINE' ||
+      savedPrefs.scope === 'UNASSIGNED' ||
+      (savedPrefs.scope === 'ALL' && isSupervisor) // "Todas" só vale p/ supervisor
+    ) {
       setScope(savedPrefs.scope);
     }
     if (typeof savedPrefs.unreadOnly === 'boolean') {
@@ -338,7 +353,10 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
       if (debouncedSearch) params.search = debouncedSearch;
       if (selectedChannelId) params.channelId = selectedChannelId;
       if (selectedTagIds.length > 0) params.tagIds = selectedTagIds.join(',');
-      if (scope === 'MINE' && currentUserId) params.assignedToId = currentUserId;
+      // Vendedor nunca cai em "Todas" (só supervisor); vira "Minhas".
+      const effectiveScope = scope === 'ALL' && !isSupervisor ? 'MINE' : scope;
+      if (effectiveScope === 'MINE' && currentUserId) params.assignedToId = currentUserId;
+      else if (effectiveScope === 'UNASSIGNED') params.unassigned = 'true';
       if (viewId) {
         return inboxViewsService.getConversations(viewId, params);
       }
@@ -746,12 +764,12 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
         <Popover className="relative">
           <PopoverButton className="flex w-full items-center gap-2 rounded-md border border-zinc-200/80 bg-white px-2.5 py-1.5 text-left text-[13px] text-zinc-700 outline-none transition-colors hover:bg-zinc-50 data-[open]:border-primary/40 data-[open]:bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900 dark:data-[open]:bg-zinc-900">
             {(() => {
-              const current = scopeOptions.find((o) => o.value === scope) ?? scopeOptions[0];
+              const current = visibleScopes.find((o) => o.value === scope) ?? visibleScopes[0];
               const Icon = current.icon;
               return <Icon className="h-3.5 w-3.5 shrink-0 text-zinc-500 dark:text-zinc-400" />;
             })()}
             <span className="flex-1 truncate font-medium">
-              {scopeOptions.find((o) => o.value === scope)?.label ?? 'Todas as conversas'}
+              {visibleScopes.find((o) => o.value === scope)?.label ?? 'Minhas conversas'}
             </span>
             <ChevronDown className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
           </PopoverButton>
@@ -762,7 +780,7 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
           >
             {({ close }) => (
               <>
-                {scopeOptions.map((option) => {
+                {visibleScopes.map((option) => {
                   const Icon = option.icon;
                   const isActive = scope === option.value;
                   const disabled = option.value === 'MINE' && !currentUserId;
