@@ -176,12 +176,16 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
   useEffect(() => {
     if (!prefsLoaded || hydratedRef.current) return;
     hydratedRef.current = true;
+    const saved = savedPrefs.scope;
     if (
-      savedPrefs.scope === 'MINE' ||
-      savedPrefs.scope === 'UNASSIGNED' ||
-      (savedPrefs.scope === 'ALL' && isSupervisor) // "Todas" só vale p/ supervisor
+      saved === 'MINE' ||
+      saved === 'UNASSIGNED' ||
+      (saved === 'ALL' && isSupervisor) // "Todas" só vale p/ supervisor
     ) {
-      setScope(savedPrefs.scope);
+      setScope(saved);
+    } else if (!saved && isSupervisor) {
+      // Supervisor sem preferência salva → abre monitorando tudo.
+      setScope('ALL');
     }
     if (typeof savedPrefs.unreadOnly === 'boolean') {
       setUnreadOnly(savedPrefs.unreadOnly);
