@@ -36,6 +36,7 @@ import {
 } from '@/features/inbox-views/services/inbox-views.service';
 import { channelsService } from '@/features/channels/services/channels.service';
 import { tagsService } from '@/features/settings/services/tags.service';
+import { membersService } from '@/features/settings/services/members.service';
 import { ZappfyIcon, MetaIcon, InstagramIcon } from '@/components/ui/icons';
 import { useOrgId } from '@/hooks/use-org-query-key';
 import { useSocket } from '../hooks/use-socket';
@@ -63,6 +64,36 @@ function ListAvatar({ name, avatarUrl }: { name: string | null; avatarUrl: strin
     <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-100 text-[13px] font-semibold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400">
       {initials}
     </div>
+  );
+}
+
+// Selinho do vendedor dono da conversa (só na visão de supervisor).
+const CHIP_COLORS = ['#0ea5e9', '#a855f7', '#f97316', '#10b981', '#ef4444', '#eab308', '#ec4899', '#6366f1'];
+function assigneeColor(id: string) {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  return CHIP_COLORS[h % CHIP_COLORS.length];
+}
+function AssigneeChip({ agent }: { agent: { id: string; name: string; avatarUrl: string | null } }) {
+  const title = `Responsável: ${agent.name}`;
+  if (agent.avatarUrl) {
+    return (
+      <img
+        src={agent.avatarUrl}
+        alt={agent.name}
+        title={title}
+        className="h-4 w-4 shrink-0 rounded-full object-cover ring-1 ring-white dark:ring-zinc-900"
+      />
+    );
+  }
+  return (
+    <span
+      title={title}
+      className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[8px] font-bold text-white"
+      style={{ backgroundColor: assigneeColor(agent.id) }}
+    >
+      {(agent.name?.[0] || '?').toUpperCase()}
+    </span>
   );
 }
 
@@ -138,6 +169,13 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
     () => scopeOptions.filter((o) => !o.adminOnly || isSupervisor),
     [isSupervisor],
   );
+  // Supervisor: filtrar por vendedor específico (null = usa o escopo normal).
+  const [agentFilter, setAgentFilter] = useState<string | null>(null);
+  const { data: orgMembers = [] } = useQuery({
+    queryKey: ['org-members'],
+    queryFn: () => membersService.list(),
+    enabled: isSupervisor,
+  });
   const {
     preferences: savedPrefs,
     isLoaded: prefsLoaded,
@@ -335,7 +373,7 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ['conversations', orgId, viewId ?? null, filterKey, debouncedSearch, selectedChannelId, scope, currentUserId],
+    queryKey: ['conversations', orgId, viewId ?? null, filterKey, debouncedSearch, selectedChannelId, scope, currentUserId, agentFilter],
     queryFn: ({ pageParam = 1 }) => {
       const params: Record<string, string> = { limit: '30', page: String(pageParam) };
       if (unreadOnly) params.unread = 'true';
@@ -357,10 +395,15 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
       if (debouncedSearch) params.search = debouncedSearch;
       if (selectedChannelId) params.channelId = selectedChannelId;
       if (selectedTagIds.length > 0) params.tagIds = selectedTagIds.join(',');
-      // Vendedor nunca cai em "Todas" (só supervisor); vira "Minhas".
-      const effectiveScope = scope === 'ALL' && !isSupervisor ? 'MINE' : scope;
-      if (effectiveScope === 'MINE' && currentUserId) params.assignedToId = currentUserId;
-      else if (effectiveScope === 'UNASSIGNED') params.unassigned = 'true';
+      if (isSupervisor && agentFilter) {
+        // Supervisor filtrando por um vendedor específico (tem precedência).
+        params.assignedToId = agentFilter;
+      } else {
+        // Vendedor nunca cai em "Todas" (só supervisor); vira "Minhas".
+        const effectiveScope = scope === 'ALL' && !isSupervisor ? 'MINE' : scope;
+        if (effectiveScope === 'MINE' && currentUserId) params.assignedToId = currentUserId;
+        else if (effectiveScope === 'UNASSIGNED') params.unassigned = 'true';
+      }
       if (viewId) {
         return inboxViewsService.getConversations(viewId, params);
       }
@@ -809,6 +852,22 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
             )}
           </PopoverPanel>
         </Popover>
+        {/* Supervisor: filtrar a lista por um vendedor específico. */}
+        {isSupervisor && orgMembers.length > 0 && (
+          <select
+            value={agentFilter ?? ''}
+            onChange={(e) => setAgentFilter(e.target.value || null)}
+            title="Ver conversas de um vendedor"
+            className="mt-2 w-full rounded-md border border-zinc-200/80 bg-white px-2.5 py-1.5 text-[13px] font-medium text-zinc-700 outline-none transition-colors hover:bg-zinc-50 focus:border-primary/40 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+          >
+            <option value="">👥 Todos os vendedores</option>
+            {orgMembers.map((m) => (
+              <option key={m.user.id} value={m.user.id}>
+                Ver de: {m.user.name}
+              </option>
+            ))}
+          </select>
+        )}
       </div>
 
       {/* Channel selector — hidden when an inbox view is active, since the
@@ -1323,6 +1382,9 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
                               <div className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusColors[conv.status] || 'bg-zinc-300'}`} />
                             </div>
                             <div className="flex shrink-0 items-center gap-1.5">
+                              {isSupervisor && conv.assignedTo && (
+                                <AssigneeChip agent={conv.assignedTo} />
+                              )}
                               <span
                                 className={`text-[10px] tabular-nums ${
                                   hasUnread
