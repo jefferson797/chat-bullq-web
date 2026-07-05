@@ -8,6 +8,8 @@ export interface Department {
   description: string | null;
   distributionRule: DistributionRule;
   isDefault: boolean;
+  slaFirstResponse: number | null;
+  slaResolution: number | null;
   _count?: { agents: number; conversations: number };
 }
 
@@ -24,11 +26,11 @@ export const departmentsService = {
     const { data } = await api.get('/departments');
     return data.data;
   },
-  async create(payload: { name: string; description?: string; distributionRule?: DistributionRule }): Promise<Department> {
+  async create(payload: { name: string; description?: string; distributionRule?: DistributionRule; slaFirstResponse?: number; slaResolution?: number }): Promise<Department> {
     const { data } = await api.post('/departments', payload);
     return data.data;
   },
-  async update(id: string, payload: { name?: string; description?: string; distributionRule?: DistributionRule }): Promise<Department> {
+  async update(id: string, payload: { name?: string; description?: string; distributionRule?: DistributionRule; slaFirstResponse?: number; slaResolution?: number }): Promise<Department> {
     const { data } = await api.patch(`/departments/${id}`, payload);
     return data.data;
   },
