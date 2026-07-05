@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { UserPlus, Trash2, Shield, ShieldCheck, User, Users, Copy, Link, X, Hash } from 'lucide-react';
+import { UserPlus, Trash2, Shield, ShieldCheck, User, Users, Copy, Link, X, Hash, Pencil, KeyRound, Check, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { membersService, type Member } from '@/features/settings/services/members.service';
 import { useOrgId } from '@/hooks/use-org-query-key';
@@ -30,6 +30,8 @@ export default function SettingsMembersPage() {
 
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [drawerMember, setDrawerMember] = useState<Member | null>(null);
+  const [editMember, setEditMember] = useState<Member | null>(null);
+  const [pwdMember, setPwdMember] = useState<Member | null>(null);
 
   const handleInvite = async () => {
     if (!inviteEmail.trim()) return;
@@ -228,15 +230,39 @@ export default function SettingsMembersPage() {
                     <td className="px-4 py-3 text-xs text-zinc-500">
                       {new Date(m.joinedAt).toLocaleDateString('pt-BR')}
                     </td>
-                    <td className="px-4 py-3 text-right">
-                      {m.role !== 'OWNER' && (
-                        <button
-                          onClick={() => handleRemove(m.id, m.user.name)}
-                          className="rounded p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      )}
+                    <td className="px-4 py-3">
+                      <div className="flex items-center justify-end gap-1">
+                        {!m.user.isActive && (
+                          <span className="mr-1 inline-flex items-center gap-1 rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-medium text-red-600 dark:bg-red-900/20 dark:text-red-400">
+                            <Ban className="h-3 w-3" /> bloqueado
+                          </span>
+                        )}
+                        {m.role !== 'OWNER' && (
+                          <>
+                            <button
+                              onClick={() => setEditMember(m)}
+                              title="Editar (nome / acesso)"
+                              className="rounded p-1.5 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-zinc-800"
+                            >
+                              <Pencil className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setPwdMember(m)}
+                              title="Redefinir senha"
+                              className="rounded p-1.5 text-zinc-400 hover:bg-amber-50 hover:text-amber-600 dark:hover:bg-amber-900/20"
+                            >
+                              <KeyRound className="h-3.5 w-3.5" />
+                            </button>
+                            <button
+                              onClick={() => handleRemove(m.id, m.user.name)}
+                              title="Remover da organização"
+                              className="rounded p-1.5 text-zinc-400 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20"
+                            >
+                              <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                          </>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -245,6 +271,20 @@ export default function SettingsMembersPage() {
           </tbody>
         </table>
       </div>
+
+      {editMember && (
+        <EditMemberDialog
+          member={editMember}
+          onClose={() => setEditMember(null)}
+          onSaved={() => { setEditMember(null); refresh(); }}
+        />
+      )}
+      {pwdMember && (
+        <ResetPasswordDialog
+          member={pwdMember}
+          onClose={() => setPwdMember(null)}
+        />
+      )}
 
       <MemberChannelsDrawer
         open={!!drawerMember}
@@ -262,6 +302,143 @@ export default function SettingsMembersPage() {
         onClose={() => setDrawerMember(null)}
         onSaved={refresh}
       />
+    </div>
+  );
+}
+
+const overlay = 'fixed inset-0 z-50 flex items-center justify-center p-4';
+const dialogCard = 'relative z-50 w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl dark:bg-zinc-900';
+const field = 'w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100';
+
+function EditMemberDialog({ member, onClose, onSaved }: { member: Member; onClose: () => void; onSaved: () => void }) {
+  const [name, setName] = useState(member.user.name);
+  const [isActive, setIsActive] = useState(member.user.isActive);
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    if (!name.trim()) return toast.error('O nome não pode ficar vazio');
+    setSaving(true);
+    try {
+      await membersService.updateMember(member.id, { name: name.trim(), isActive });
+      toast.success('Membro atualizado');
+      onSaved();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao salvar');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className={overlay}>
+      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+      <div className={dialogCard}>
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">Editar membro</h3>
+          <button onClick={onClose} className="rounded p-1 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"><X className="h-4 w-4" /></button>
+        </div>
+        <p className="mt-0.5 text-xs text-zinc-400">{member.user.email}</p>
+
+        <div className="mt-4 space-y-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">Nome</label>
+            <input value={name} onChange={(e) => setName(e.target.value)} className={field} autoFocus />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-zinc-700 dark:text-zinc-300">
+            <input type="checkbox" checked={isActive} onChange={(e) => setIsActive(e.target.checked)} className="h-4 w-4 rounded border-zinc-300" />
+            Acesso ativo
+          </label>
+          {!isActive && (
+            <p className="rounded-md bg-amber-50 px-2.5 py-1.5 text-xs text-amber-700 dark:bg-amber-900/20 dark:text-amber-400">
+              Bloqueado: este usuário não conseguirá entrar em nenhum sistema até ser reativado.
+            </p>
+          )}
+        </div>
+
+        <div className="mt-5 flex justify-end gap-2">
+          <button onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800">Cancelar</button>
+          <button onClick={save} disabled={saving} className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">
+            <Check className="h-4 w-4" /> Salvar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function genPassword(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+  let out = '';
+  for (let i = 0; i < 10; i++) out += chars[Math.floor(Math.random() * chars.length)];
+  return out + '@' + Math.floor(Math.random() * 90 + 10);
+}
+
+function ResetPasswordDialog({ member, onClose }: { member: Member; onClose: () => void }) {
+  const [password, setPassword] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+
+  const save = async () => {
+    if (password.trim().length < 6) return toast.error('A senha precisa ter pelo menos 6 caracteres');
+    setSaving(true);
+    try {
+      await membersService.resetPassword(member.id, password.trim());
+      setDone(true);
+      toast.success('Senha redefinida');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Erro ao redefinir');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const copy = () => { navigator.clipboard.writeText(password); toast.success('Senha copiada'); };
+
+  return (
+    <div className={overlay}>
+      <div className="fixed inset-0 bg-black/50" onClick={onClose} />
+      <div className={dialogCard}>
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-1.5 text-base font-semibold text-zinc-900 dark:text-zinc-100">
+            <KeyRound className="h-4 w-4" /> Redefinir senha
+          </h3>
+          <button onClick={onClose} className="rounded p-1 text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800"><X className="h-4 w-4" /></button>
+        </div>
+        <p className="mt-0.5 text-xs text-zinc-400">{member.user.name} · {member.user.email}</p>
+
+        {done ? (
+          <div className="mt-4">
+            <div className="rounded-lg bg-emerald-50 p-3 dark:bg-emerald-900/20">
+              <p className="text-sm font-medium text-emerald-700 dark:text-emerald-400">Senha redefinida! ✅</p>
+              <p className="mt-1 text-xs text-emerald-700/80 dark:text-emerald-400/80">Copie e entregue ao membro. Ele pode trocá-la depois no próprio perfil.</p>
+              <div className="mt-2 flex items-center gap-2">
+                <code className="flex-1 rounded bg-white px-2 py-1.5 font-mono text-sm dark:bg-zinc-800">{password}</code>
+                <button onClick={copy} className="rounded-md bg-primary px-2.5 py-1.5 text-white hover:opacity-90"><Copy className="h-3.5 w-3.5" /></button>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button onClick={onClose} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90">Concluir</button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <p className="mt-3 text-xs text-zinc-500">
+              Como admin, você define uma nova senha — a senha antiga não é revelada (fica criptografada). Entregue a nova ao membro; ele pode trocá-la depois.
+            </p>
+            <div className="mt-3">
+              <label className="mb-1 block text-xs font-medium text-zinc-600 dark:text-zinc-400">Nova senha</label>
+              <div className="flex items-center gap-2">
+                <input value={password} onChange={(e) => setPassword(e.target.value)} placeholder="mín. 6 caracteres" className={`${field} font-mono`} autoFocus />
+                <button onClick={() => setPassword(genPassword())} className="shrink-0 rounded-md border border-zinc-300 px-2.5 py-2 text-xs font-medium text-zinc-600 hover:bg-zinc-100 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800">Gerar</button>
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <button onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800">Cancelar</button>
+              <button onClick={save} disabled={saving} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50">Redefinir senha</button>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }

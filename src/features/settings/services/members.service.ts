@@ -29,6 +29,13 @@ export const membersService = {
     const { data } = await api.patch(`/organizations/members/${memberId}/role`, { role });
     return data.data;
   },
+  async updateMember(memberId: string, payload: { name?: string; isActive?: boolean }): Promise<any> {
+    const { data } = await api.patch(`/organizations/members/${memberId}`, payload);
+    return data.data;
+  },
+  async resetPassword(memberId: string, newPassword: string): Promise<void> {
+    await api.post(`/organizations/members/${memberId}/reset-password`, { newPassword });
+  },
   async remove(memberId: string): Promise<void> {
     await api.delete(`/organizations/members/${memberId}`);
   },
