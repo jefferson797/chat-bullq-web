@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { departmentsService } from '@/features/settings/services/departments.service';
 import { toast } from 'sonner';
 import {
   XCircle,
@@ -227,6 +228,9 @@ export function ConversationHeader({
             onChanged={onUpdate}
           />
         )}
+        {conversation.status !== 'CLOSED' && (
+          <DepartmentPicker conversation={conversation} onChanged={onUpdate} />
+        )}
         <PipelinePopover conversation={conversation} onChanged={onUpdate} />
         {conversation.status !== 'CLOSED' && (
           <button
@@ -268,5 +272,55 @@ export function ConversationHeader({
         />
       )}
     </div>
+  );
+}
+
+// Seletor de setor (department) — move a conversa pra um setor.
+function DepartmentPicker({
+  conversation,
+  onChanged,
+}: {
+  conversation: Conversation;
+  onChanged: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => departmentsService.list(),
+  });
+  if (departments.length === 0) return null;
+
+  const onPick = async (id: string) => {
+    if (!id || id === conversation.department?.id) return;
+    setBusy(true);
+    try {
+      await inboxService.setDepartment(conversation.id, id);
+      const dep = departments.find((d) => d.id === id);
+      toast.success(`Movida para ${dep?.name ?? 'setor'}`);
+      onChanged();
+    } catch {
+      toast.error('Não foi possível mover de setor');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <select
+      value={conversation.department?.id ?? ''}
+      disabled={busy}
+      onChange={(e) => onPick(e.target.value)}
+      title="Mover para setor"
+      className="rounded-md border border-zinc-200 bg-white px-2 py-1.5 text-xs font-medium text-zinc-600 outline-none hover:bg-zinc-100 focus:border-primary/40 disabled:opacity-50 dark:border-zinc-700 dark:bg-zinc-950 dark:text-zinc-300 dark:hover:bg-zinc-800"
+    >
+      <option value="" disabled>
+        🗂️ Setor…
+      </option>
+      {departments.map((d) => (
+        <option key={d.id} value={d.id}>
+          {d.name}
+        </option>
+      ))}
+    </select>
   );
 }

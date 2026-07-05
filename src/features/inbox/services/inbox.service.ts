@@ -59,6 +59,7 @@ export interface Conversation {
   contact: Contact;
   channel: ChannelInfo;
   assignedTo: AgentInfo | null;
+  department: { id: string; name: string } | null;
   messages: LastMessage[];
   tags?: TagLink[];
   _count: { messages: number };
@@ -218,6 +219,17 @@ export const inboxService = {
   ): Promise<Conversation> {
     const { data } = await api.patch(`/conversations/${conversationId}`, {
       assignedToId,
+    });
+    return data.data;
+  },
+
+  /** Move a conversa para um setor (department). */
+  async setDepartment(
+    conversationId: string,
+    departmentId: string,
+  ): Promise<Conversation> {
+    const { data } = await api.patch(`/conversations/${conversationId}`, {
+      departmentId,
     });
     return data.data;
   },

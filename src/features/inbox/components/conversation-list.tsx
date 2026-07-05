@@ -37,6 +37,7 @@ import {
 import { channelsService } from '@/features/channels/services/channels.service';
 import { tagsService } from '@/features/settings/services/tags.service';
 import { membersService } from '@/features/settings/services/members.service';
+import { departmentsService } from '@/features/settings/services/departments.service';
 import { ZappfyIcon, MetaIcon, InstagramIcon } from '@/components/ui/icons';
 import { useOrgId } from '@/hooks/use-org-query-key';
 import { useSocket } from '../hooks/use-socket';
@@ -175,6 +176,12 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
     queryKey: ['org-members'],
     queryFn: () => membersService.list(),
     enabled: isSupervisor,
+  });
+  // Filtro por setor (department) — disponível pra todos.
+  const [deptFilter, setDeptFilter] = useState<string | null>(null);
+  const { data: departments = [] } = useQuery({
+    queryKey: ['departments'],
+    queryFn: () => departmentsService.list(),
   });
   const {
     preferences: savedPrefs,
@@ -373,7 +380,7 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
     hasNextPage,
     isFetchingNextPage,
   } = useInfiniteQuery({
-    queryKey: ['conversations', orgId, viewId ?? null, filterKey, debouncedSearch, selectedChannelId, scope, currentUserId, agentFilter],
+    queryKey: ['conversations', orgId, viewId ?? null, filterKey, debouncedSearch, selectedChannelId, scope, currentUserId, agentFilter, deptFilter],
     queryFn: ({ pageParam = 1 }) => {
       const params: Record<string, string> = { limit: '30', page: String(pageParam) };
       if (unreadOnly) params.unread = 'true';
@@ -404,6 +411,7 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
         if (effectiveScope === 'MINE' && currentUserId) params.assignedToId = currentUserId;
         else if (effectiveScope === 'UNASSIGNED') params.unassigned = 'true';
       }
+      if (deptFilter) params.departmentId = deptFilter;
       if (viewId) {
         return inboxViewsService.getConversations(viewId, params);
       }
@@ -866,6 +874,21 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
                 Ver de: {m.user.name}
               </option>
             ))}
+          </select>
+        )}
+        {/* Filtro por setor (department) — pra todos. */}
+        {departments.length > 0 && (
+          <select
+            value={deptFilter ?? ''}
+            onChange={(e) => setDeptFilter(e.target.value || null)}
+            title="Filtrar por setor"
+            className="mt-2 w-full rounded-md border border-zinc-200/80 bg-white px-2.5 py-1.5 text-[13px] font-medium text-zinc-700 outline-none transition-colors hover:bg-zinc-50 focus:border-primary/40 dark:border-zinc-800 dark:bg-zinc-950 dark:text-zinc-200 dark:hover:bg-zinc-900"
+          >
+            <option value="">🗂️ Todos os setores</option>
+            {departments.map((d) => (
+              <option key={d.id} value={d.id}>Setor: {d.name}</option>
+            ))}
+            <option value="none">Sem setor</option>
           </select>
         )}
       </div>
@@ -1415,6 +1438,13 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
                         </>
                       );
                     })()}
+                    {conv.department && (
+                      <div className="mt-1">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-1.5 py-px text-[10px] font-medium text-primary">
+                          🗂️ {conv.department.name}
+                        </span>
+                      </div>
+                    )}
                     {(conv.tags?.length || conv.contact.tags?.length) ? (
                       <div className="mt-1 flex flex-wrap gap-1">
                         {conv.tags?.map((t) => (
