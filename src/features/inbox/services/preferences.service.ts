@@ -1,7 +1,7 @@
 import { api } from '@/lib/api';
 
 export interface InboxPreferences {
-  scope?: 'ALL' | 'MINE' | 'UNASSIGNED';
+  scope?: 'ALL' | 'MINE' | 'UNASSIGNED' | 'CLOSED';
   /** @deprecated mantido pra compat de leitura — não escrevemos mais aqui. */
   statusFilters?: string[];
   selectedChannelId?: string | null;

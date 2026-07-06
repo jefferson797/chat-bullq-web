@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Star, Loader2, CheckCircle2 } from 'lucide-react';
 
@@ -18,6 +18,18 @@ export default function AvaliarPage() {
   const [comment, setComment] = useState('');
   const [phase, setPhase] = useState<Phase>('form');
   const [error, setError] = useState<string | null>(null);
+  const [brand, setBrand] = useState<{ orgName: string | null; logoUrl: string | null }>({ orgName: null, logoUrl: null });
+
+  useEffect(() => {
+    if (!token) return;
+    fetch(`${API_URL}/ratings/public/${token}/branding`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        const b = j?.data ?? j;
+        if (b && (b.orgName || b.logoUrl)) setBrand({ orgName: b.orgName ?? null, logoUrl: b.logoUrl ?? null });
+      })
+      .catch(() => undefined);
+  }, [token]);
 
   const submit = async () => {
     if (score < 1) {
@@ -70,6 +82,17 @@ export default function AvaliarPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-100 p-4 dark:bg-zinc-950">
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl dark:bg-zinc-900 sm:p-8">
+        {(brand.logoUrl || brand.orgName) && (
+          <div className="mb-5 flex flex-col items-center gap-2">
+            {brand.logoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={brand.logoUrl} alt={brand.orgName || 'logo'} className="max-h-14 max-w-[60%] object-contain" />
+            )}
+            {brand.orgName && !brand.logoUrl && (
+              <span className="text-lg font-bold text-zinc-800 dark:text-zinc-100">{brand.orgName}</span>
+            )}
+          </div>
+        )}
         {phase === 'done' || phase === 'already' ? (
           <div className="flex flex-col items-center text-center">
             <CheckCircle2 className="h-14 w-14 text-emerald-500" />

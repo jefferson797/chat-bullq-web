@@ -18,6 +18,7 @@ import {
   FolderPlus,
   MailOpen,
   Archive,
+  CheckCircle2,
   Tag as TagIcon,
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
@@ -98,13 +99,16 @@ function AssigneeChip({ agent }: { agent: { id: string; name: string; avatarUrl:
   );
 }
 
-type ScopeFilter = 'ALL' | 'MINE' | 'UNASSIGNED';
+type ScopeFilter = 'ALL' | 'MINE' | 'UNASSIGNED' | 'CLOSED';
 
 // Ordem: foco no próprio primeiro; "Todas" só aparece p/ supervisor (OWNER/ADMIN).
+// "Encerradas" mostra as conversas fechadas (vendedor vê as próprias; supervisor
+// vê todas) — separadas das ativas pra não poluir a fila.
 const scopeOptions: { label: string; value: ScopeFilter; icon: React.ElementType; adminOnly?: boolean }[] = [
   { label: 'Minhas conversas', value: 'MINE', icon: User },
   { label: 'Sem dono', value: 'UNASSIGNED', icon: Inbox },
   { label: 'Todas as conversas', value: 'ALL', icon: Users, adminOnly: true },
+  { label: 'Encerradas', value: 'CLOSED', icon: CheckCircle2 },
 ];
 
 const channelIcons: Record<string, React.ElementType> = {
@@ -225,6 +229,7 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
     if (
       saved === 'MINE' ||
       saved === 'UNASSIGNED' ||
+      saved === 'CLOSED' ||
       (saved === 'ALL' && isSupervisor) // "Todas" só vale p/ supervisor
     ) {
       setScope(saved);
@@ -402,9 +407,18 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
       if (debouncedSearch) params.search = debouncedSearch;
       if (selectedChannelId) params.channelId = selectedChannelId;
       if (selectedTagIds.length > 0) params.tagIds = selectedTagIds.join(',');
+      // Status: "Encerradas" mostra só CLOSED; as demais abas escondem as
+      // encerradas (fora de views, que têm filtro próprio).
+      const isClosedScope = scope === 'CLOSED';
+      if (isClosedScope) params.status = 'CLOSED';
+      else if (!viewId) params.status = 'PENDING,OPEN,WAITING,BOT';
+
       if (isSupervisor && agentFilter) {
         // Supervisor filtrando por um vendedor específico (tem precedência).
         params.assignedToId = agentFilter;
+      } else if (isClosedScope) {
+        // Encerradas: vendedor vê as próprias; supervisor vê todas.
+        if (!isSupervisor && currentUserId) params.assignedToId = currentUserId;
       } else {
         // Vendedor nunca cai em "Todas" (só supervisor); vira "Minhas".
         const effectiveScope = scope === 'ALL' && !isSupervisor ? 'MINE' : scope;
