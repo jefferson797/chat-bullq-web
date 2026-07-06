@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { UserPlus, Trash2, Shield, ShieldCheck, User, Users, Copy, Link, X, Hash, Pencil, KeyRound, Check, Ban } from 'lucide-react';
+import { UserPlus, Trash2, Shield, ShieldCheck, User, Users, Copy, Link, X, Hash, Pencil, KeyRound, Check, Ban, Send, Clock } from 'lucide-react';
 import { toast } from 'sonner';
-import { membersService, type Member } from '@/features/settings/services/members.service';
+import { membersService, type Member, type Invitation } from '@/features/settings/services/members.service';
 import { useOrgId } from '@/hooks/use-org-query-key';
 import { MemberChannelsDrawer } from '@/features/settings/components/member-channels-drawer';
 
@@ -25,8 +25,31 @@ export default function SettingsMembersPage() {
     queryKey: ['members', orgId],
     queryFn: () => membersService.list(),
   });
+  const { data: invitations = [] } = useQuery({
+    queryKey: ['invitations', orgId],
+    queryFn: () => membersService.listInvitations(),
+  });
+  const pendingInvites = invitations.filter((i) => i.status === 'PENDING');
 
-  const refresh = () => queryClient.invalidateQueries({ queryKey: ['members'] });
+  const refresh = () => {
+    queryClient.invalidateQueries({ queryKey: ['members'] });
+    queryClient.invalidateQueries({ queryKey: ['invitations'] });
+  };
+
+  const copyInvite = (token: string) => {
+    navigator.clipboard.writeText(`${window.location.origin}/register?invite=${token}`);
+    toast.success('Link copiado! Compartilhe com o convidado.');
+  };
+  const cancelInvite = async (inv: Invitation) => {
+    if (!confirm(`Cancelar o convite de ${inv.email}?`)) return;
+    try {
+      await membersService.revokeInvitation(inv.id);
+      toast.success('Convite cancelado');
+      refresh();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Erro ao cancelar');
+    }
+  };
 
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [drawerMember, setDrawerMember] = useState<Member | null>(null);
@@ -142,6 +165,49 @@ export default function SettingsMembersPage() {
           >
             <X className="h-3.5 w-3.5" />
           </button>
+        </div>
+      )}
+
+      {pendingInvites.length > 0 && (
+        <div className="mt-6">
+          <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-zinc-700 dark:text-zinc-300">
+            <Send className="h-4 w-4" /> Convites pendentes ({pendingInvites.length})
+          </h3>
+          <div className="space-y-2">
+            {pendingInvites.map((inv) => {
+              const expired = new Date(inv.expiresAt).getTime() < Date.now();
+              const roleMeta = roleLabels[inv.role] || roleLabels.AGENT;
+              return (
+                <div key={inv.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-900">
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-zinc-800 dark:text-zinc-200">{inv.email}</p>
+                    <p className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-400">
+                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${roleMeta.color}`}>{roleMeta.label}</span>
+                      <Clock className="h-3 w-3" />
+                      {expired ? (
+                        <span className="text-red-500">expirado</span>
+                      ) : (
+                        `expira ${new Date(inv.expiresAt).toLocaleDateString('pt-BR')}`
+                      )}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => copyInvite(inv.token)}
+                    disabled={expired}
+                    className="inline-flex items-center gap-1.5 rounded-md border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-40 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700"
+                  >
+                    <Link className="h-3.5 w-3.5" /> Copiar link
+                  </button>
+                  <button
+                    onClick={() => cancelInvite(inv)}
+                    className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium text-zinc-500 hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-900/20"
+                  >
+                    <X className="h-3.5 w-3.5" /> Cancelar
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
