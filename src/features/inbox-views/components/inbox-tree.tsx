@@ -21,6 +21,7 @@ import {
   Trash2,
   Archive,
   MailOpen,
+  CheckCircle2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -42,6 +43,7 @@ const VIEW_ICON: Record<string, any> = {
   Star,
   Filter,
   Archive,
+  CheckCircle2,
 };
 
 const COLOR_CLS: Record<string, string> = {
