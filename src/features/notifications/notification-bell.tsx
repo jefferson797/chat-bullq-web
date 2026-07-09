@@ -154,7 +154,7 @@ export function NotificationBell() {
       </PopoverButton>
 
       <PopoverPanel
-        anchor="bottom end"
+        anchor="bottom start"
         transition
         className={cn(
           'z-50 mt-2 w-80 overflow-hidden rounded-xl border border-zinc-950/5 bg-white shadow-xl',
