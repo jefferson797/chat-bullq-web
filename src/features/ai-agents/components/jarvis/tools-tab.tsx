@@ -76,7 +76,7 @@ export function JarvisToolsTab() {
             Nenhuma tool cadastrada
           </p>
           <p className="mt-1 max-w-md text-center text-xs text-zinc-400 mx-auto">
-            Cadastre uma conexão HTTP (ex: Trivapp) ou SQL (ex: Hotwebinar) e
+            Cadastre uma conexão HTTP (ex: ERP Exatek) ou SQL (ex: banco do ERP) e
             depois crie skills que usam essa conexão.
           </p>
         </div>

@@ -86,7 +86,7 @@ export default function PipelinesIndexPage() {
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Nome do pipeline (ex: Vendas Mentoria)"
+            placeholder="Nome do pipeline (ex: Vendas Brindes)"
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleCreate();
               if (e.key === 'Escape') setCreating(false);

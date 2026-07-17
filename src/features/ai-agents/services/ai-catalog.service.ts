@@ -6,7 +6,7 @@ export type ToolSource = 'CUSTOM_HTTP' | 'CUSTOM_SQL';
 export type SkillSource = 'BUILTIN' | 'HTTP' | 'SQL';
 
 /**
- * Tool = connection provider (Trivapp HTTP base+auth, or Hotwebinar SQL DSN).
+ * Tool = connection provider (HTTP base+auth, or SQL DSN).
  * Reused by many Skills.
  */
 export interface AiTool {

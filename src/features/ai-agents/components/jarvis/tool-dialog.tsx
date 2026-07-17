@@ -144,7 +144,7 @@ export function ToolDialog({ open, tool, onClose, onSaved }: Props) {
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder={source === 'CUSTOM_SQL' ? 'Hotwebinar' : 'Trivapp'}
+              placeholder={source === 'CUSTOM_SQL' ? 'Banco do ERP' : 'ERP Exatek'}
             />
           </Field>
 
@@ -170,7 +170,7 @@ export function ToolDialog({ open, tool, onClose, onSaved }: Props) {
                 <input
                   value={httpBaseUrl}
                   onChange={(e) => setHttpBaseUrl(e.target.value)}
-                  placeholder="https://api.trivapp.com.br/api/v1"
+                  placeholder="https://api.exemplo.com.br/api/v1"
                   className="font-mono text-xs"
                 />
               </Field>
@@ -184,7 +184,7 @@ export function ToolDialog({ open, tool, onClose, onSaved }: Props) {
                   rows={5}
                   value={headersJson}
                   onChange={(e) => setHeadersJson(e.target.value)}
-                  placeholder='{"x-admin-api-key":"{{env.MEMBERS_ADMIN_KEY}}","x-tenant-id":"{{env.MEMBERS_TENANT_BRAVY}}","Content-Type":"application/json"}'
+                  placeholder='{"Authorization":"Bearer {{env.MINHA_API_KEY}}","Content-Type":"application/json"}'
                   className="font-mono text-xs"
                 />
               </Field>
@@ -192,12 +192,12 @@ export function ToolDialog({ open, tool, onClose, onSaved }: Props) {
           ) : (
             <Field
               label="Connection ref (env var)"
-              hint="Nome da env var no servidor com a connection string. Ex: HOTWEBINAR_DB_URL"
+              hint="Nome da env var no servidor com a connection string. Ex: ERP_DB_URL"
             >
               <input
                 value={sqlConnectionRef}
                 onChange={(e) => setSqlConnectionRef(e.target.value)}
-                placeholder="HOTWEBINAR_DB_URL"
+                placeholder="ERP_DB_URL"
                 className="font-mono"
               />
             </Field>

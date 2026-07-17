@@ -117,7 +117,7 @@ export function CardDialog({
             <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="ex: Lead Bravy School"
+              placeholder="ex: Lead camisetas DTF"
               className="mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-100"
             />
           </div>
