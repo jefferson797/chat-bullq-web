@@ -8,6 +8,7 @@ import { ConversationList } from '@/features/inbox/components/conversation-list'
 import { ChatPanel } from '@/features/inbox/components/chat-panel';
 import { AgentRunsSidebar } from '@/features/inbox/components/agent-runs-sidebar';
 import { inboxService, type Conversation } from '@/features/inbox/services/inbox.service';
+import { contactsService } from '@/features/contacts/services/contacts.service';
 import { TunerLogo } from '@/components/ui/tuner-logo';
 
 const AGENT_LOGS_PREF_KEY = 'inbox.agentLogsOpen';
@@ -68,6 +69,31 @@ export default function InboxPage() {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deepLinkConvId]);
+
+  // Deep-link by CONTACT (e.g. Radar de clientes do Exatek): ?contactId=...
+  // resolves the contact's most recent conversation and opens it. The contact
+  // detail already embeds conversations (newest first), so no extra API needed.
+  const deepLinkContactId = searchParams.get('contactId');
+  useEffect(() => {
+    if (!deepLinkContactId || deepLinkConvId) return;
+    let cancelled = false;
+    contactsService
+      .getById(deepLinkContactId)
+      .then((contact) => {
+        const convId = contact.conversations?.[0]?.id as string | undefined;
+        if (!convId) return; // contato sem conversa — inbox segue normal
+        return inboxService.getConversation(convId).then((conv) => {
+          if (!cancelled) setActiveConversation(conv);
+        });
+      })
+      .catch(() => {
+        // Silent — broken link shouldn't break the inbox.
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deepLinkContactId]);
 
   // Keep the active conversation object in sync with the backend (enrichment, last message, etc.)
   const { data: freshActive } = useQuery({
