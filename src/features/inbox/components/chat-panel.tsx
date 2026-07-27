@@ -390,6 +390,10 @@ export function ChatPanel({
     // catch the case where a `message:new` was missed.
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
+    // Última linha de defesa: usuário parado olhando a conversa (sem trocar
+    // de foco) com o socket zumbi — o poll garante que nenhuma mensagem
+    // fica invisível por mais de 30s até o realtime se recuperar.
+    refetchInterval: 30000,
     staleTime: 5000,
   });
 

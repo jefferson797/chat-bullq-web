@@ -431,6 +431,9 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
     // Realtime (message:new / conversation:updated) drives updates — keep a
     // slow safety-net poll to cover transient socket drops.
     refetchInterval: 60000,
+    // Volta pra aba com o socket zumbi → o poll pode demorar até 60s;
+    // o refetch no foco fecha essa janela na hora.
+    refetchOnWindowFocus: true,
     staleTime: 15000,
   });
 

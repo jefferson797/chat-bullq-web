@@ -39,11 +39,43 @@ async function recoverFromServerDisconnect() {
     const delay = Math.min(1000 * 2 ** recoverAttempts, 30000);
     recoverAttempts += 1;
     await new Promise((r) => setTimeout(r, delay));
+    if (!socket || socket.connected) return;
     const ok = await refreshAccessToken();
-    if (ok && socket) socket.connect();
+    if (ok && socket) {
+      socket.connect();
+      return;
+    }
   } finally {
     recovering = false;
   }
+  // Refresh falhou (rede instável, API no meio de um deploy). Se desistirmos
+  // aqui o realtime morre até o F5 — o REST continua vivo e o app PARECE ok,
+  // mas nenhum message:new chega. Continua tentando com backoff (máx 30s),
+  // exceto se o usuário deslogou (sem refresh_token não há o que renovar).
+  if (socket && !socket.connected && localStorage.getItem('refresh_token')) {
+    void recoverFromServerDisconnect();
+  }
+}
+
+// Acordar de sleep, trocar de rede ou a aba ser descongelada pelo browser
+// pode deixar o socket "zumbi" sem disparar os caminhos normais de
+// reconexão. Ao voltar a ficar visível/online, força a checagem: se está
+// desconectado, reconecta na hora (se o token expirou, o handshake falha e
+// cai no recovery acima — que renova e reconecta).
+let wakeupBound = false;
+function bindWakeupListeners() {
+  if (wakeupBound || typeof window === 'undefined') return;
+  wakeupBound = true;
+  const wake = () => {
+    if (!socket || socket.connected || recovering) return;
+    recoverAttempts = 0;
+    socket.connect();
+  };
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') wake();
+  });
+  window.addEventListener('online', wake);
+  window.addEventListener('focus', wake);
 }
 
 export function getSocket(): Socket {
@@ -77,6 +109,8 @@ export function getSocket(): Socket {
   socket.on('ready', () => {
     recoverAttempts = 0;
   });
+
+  bindWakeupListeners();
 
   return socket;
 }
