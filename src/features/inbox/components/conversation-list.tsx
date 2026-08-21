@@ -1,6 +1,7 @@
 'use client';
 
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query';
+import { contactDisplayName, contactDisplayTitle } from '@/lib/contact-display';
 import {
   MessageSquare,
   Search,
@@ -1358,7 +1359,7 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
                       }`}
                     >
                       <ListAvatar
-                        name={conv.contact.name}
+                        name={contactDisplayName(conv.contact)}
                         avatarUrl={conv.contact.avatarUrl}
                       />
                     </div>
@@ -1409,7 +1410,7 @@ export function ConversationList({ activeId, onSelect, viewId }: ConversationLis
                                         : 'text-zinc-800 dark:text-zinc-200')
                                 }`}
                               >
-                                {conv.contact.name || conv.contact.phone || 'Desconhecido'}
+                                {contactDisplayTitle(conv.contact)}
                               </span>
                               <div className={`h-1.5 w-1.5 shrink-0 rounded-full ${statusColors[conv.status] || 'bg-zinc-300'}`} />
                             </div>

@@ -11,6 +11,7 @@ import {
   ShieldOff,
 } from 'lucide-react';
 import { aiAgentsService, type WatchdogConversationLite } from '../../services/ai-agents.service';
+import { contactDisplayName } from '@/lib/contact-display';
 
 /**
  * Aba "Watchdog" do Jarvis. Monitoramento das conversas presas:
@@ -236,7 +237,7 @@ function Section({
                 return (
                   <tr key={c.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-900/40">
                     <td className="px-3 py-2 text-zinc-900 dark:text-zinc-100">
-                      {c.contact.name ?? c.contact.phone ?? '—'}
+                      {contactDisplayName(c.contact)}
                     </td>
                     <td className="px-3 py-2 text-zinc-600 dark:text-zinc-400">
                       {c.channel.name}

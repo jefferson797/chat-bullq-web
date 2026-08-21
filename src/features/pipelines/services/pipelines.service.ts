@@ -51,6 +51,9 @@ export interface CardSummary {
   contact?: {
     id: string;
     name: string | null;
+    firstName?: string | null;
+    lastName?: string | null;
+    company?: string | null;
     phone: string | null;
     avatarUrl: string | null;
   } | null;

@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Check, CheckCheck, Clock, AlertCircle, ExternalLink, Reply, Forward, Trash2, X, Ban, ChevronUp, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { inboxService, type Conversation, type Message } from '../services/inbox.service';
+import { contactDisplayName, contactRealName } from '@/lib/contact-display';
 import { ChatInput } from './chat-input';
 import { ConversationHeader } from './conversation-header';
 import { StoryReplyCard } from './story-reply-card';
@@ -854,7 +855,7 @@ export function ChatPanel({
                         name={
                           conversation.isGroup && msg.senderName
                             ? msg.senderName
-                            : conversation.contact.name
+                            : contactDisplayName(conversation.contact)
                         }
                         avatarUrl={
                           conversation.isGroup ? null : conversation.contact.avatarUrl
@@ -1093,7 +1094,7 @@ export function ChatPanel({
         onSendAudio={handleSendAudio}
         onSendFile={handleSendFile}
         disabled={conversation.status === 'CLOSED'}
-        contactName={conversation.contact.name}
+        contactName={contactRealName(conversation.contact)}
       />
       <ForwardMessageDialog
         open={!!forwarding}

@@ -9,6 +9,11 @@ import {
   inboxService,
   type Conversation,
 } from '@/features/inbox/services/inbox.service';
+import {
+  contactDisplayName,
+  contactDisplayTitle,
+  contactRealName,
+} from '@/lib/contact-display';
 
 interface Props {
   open: boolean;
@@ -151,17 +156,15 @@ export function AddConversationDialog({
                 }`}
               >
                 <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-xs font-semibold text-zinc-500 dark:bg-zinc-800">
-                  {(c.contact.name || c.contact.phone || '??')
-                    .slice(0, 2)
-                    .toUpperCase()}
+                  {contactDisplayName(c.contact).slice(0, 2).toUpperCase()}
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium text-zinc-900 dark:text-zinc-100">
-                    {c.contact.name || c.contact.phone || 'Desconhecido'}
+                    {contactDisplayTitle(c.contact)}
                   </p>
                   <p className="truncate text-[11px] text-zinc-500">
                     <span className="uppercase">{c.channel.type}</span>
-                    {c.contact.phone && c.contact.name
+                    {c.contact.phone && contactRealName(c.contact)
                       ? ` · ${c.contact.phone}`
                       : ''}
                   </p>

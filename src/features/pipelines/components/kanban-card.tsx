@@ -5,6 +5,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { GripVertical, MessageSquare, User } from 'lucide-react';
 import { ZappfyIcon, MetaIcon, InstagramIcon } from '@/components/ui/icons';
 import type { CardSummary } from '../services/pipelines.service';
+import { contactDisplayTitle, contactRealName } from '@/lib/contact-display';
 
 const channelIconByType: Record<string, React.ElementType> = {
   WHATSAPP_ZAPPFY: ZappfyIcon,
@@ -44,10 +45,12 @@ export function KanbanCard({ card, onClick }: Props) {
   const contact = card.contact;
   // Nome exibido: sempre o nome ATUAL do contato (o card.title é um snapshot
   // da criação e pode ficar desatualizado se o contato for renomeado).
-  const displayName = contact?.name || contact?.phone || card.title;
+  const displayName = contactRealName(contact)
+    ? contactDisplayTitle(contact)
+    : contact?.phone || card.title;
   // Linha secundária: telefone, só quando não for igual ao nome já exibido.
   const secondaryInfo =
-    contact?.phone && contact.phone !== displayName ? contact.phone : null;
+    contact?.phone && contactRealName(contact) ? contact.phone : null;
   const assignedTo = card.assignedTo;
   const isClosed = card.status !== 'OPEN';
 

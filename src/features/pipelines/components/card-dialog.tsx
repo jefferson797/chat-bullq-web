@@ -7,6 +7,7 @@ import {
   pipelinesService,
   type CardSummary,
 } from '../services/pipelines.service';
+import { contactDisplayTitle } from '@/lib/contact-display';
 
 interface Props {
   open: boolean;
@@ -170,7 +171,7 @@ export function CardDialog({
             <div className="rounded-md border border-zinc-200 bg-zinc-50 p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900/50">
               <p className="text-zinc-500">Contato</p>
               <p className="mt-0.5 font-medium text-zinc-900 dark:text-zinc-100">
-                {card.contact.name || card.contact.phone}
+                {contactDisplayTitle(card.contact)}
               </p>
             </div>
           )}

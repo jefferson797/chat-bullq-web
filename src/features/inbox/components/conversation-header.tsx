@@ -22,6 +22,7 @@ import { AgentPinPopover } from './agent-pin-popover';
 import { PipelinePopover } from './pipeline-popover';
 import { CompleteContactDialog } from './complete-contact-dialog';
 import { inboxService, type Conversation } from '../services/inbox.service';
+import { contactDisplayName, contactDisplayTitle } from '@/lib/contact-display';
 
 interface ConversationHeaderProps {
   conversation: Conversation;
@@ -147,16 +148,17 @@ export function ConversationHeader({
     <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-2 border-b border-zinc-200 bg-white px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="flex min-w-0 items-center gap-3">
         <HeaderAvatar
-          name={conversation.contact.name}
+          name={contactDisplayName(conversation.contact)}
           avatarUrl={conversation.contact.avatarUrl}
         />
         <div className="flex min-w-0 flex-col">
           <div className="truncate text-sm font-semibold text-zinc-900 dark:text-zinc-100">
-            {conversation.contact.name || conversation.contact.phone || 'Desconhecido'}
+            {contactDisplayTitle(conversation.contact)}
           </div>
-          {conversation.contact.phone && conversation.contact.name && (
-            <div className="text-xs text-zinc-500">{conversation.contact.phone}</div>
-          )}
+          {conversation.contact.phone &&
+            contactDisplayName(conversation.contact) !== conversation.contact.phone && (
+              <div className="text-xs text-zinc-500">{conversation.contact.phone}</div>
+            )}
           <ChannelBadge
             type={conversation.channel.type}
             name={conversation.channel.name}
