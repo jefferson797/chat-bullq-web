@@ -128,17 +128,20 @@ export function MediaDocument({ message, isOutbound }: MediaProps) {
   // Download direto: baixa o arquivo como blob e dispara o save na máquina,
   // sem abrir aba nova. O atributo `download` nativo é ignorado em URLs
   // cross-origin (a mídia vem do domínio da API), então fazemos via fetch +
-  // object URL. Se o fetch falhar (ex.: CORS antigo), cai pro abrir direto.
+  // object URL. Se o fetch falhar (ex.: URL do provider sem CORS), cai pro
+  // abrir direto. Um clique só: se a URL ainda não foi resolvida, resolve e
+  // segue direto pro download — sem exigir segundo clique.
   const onClick = async (e: React.MouseEvent<HTMLAnchorElement>) => {
     e.preventDefault();
-    if (!url) {
-      void retry();
-      return;
-    }
-    if (downloading) return;
+    if (downloading || loading) return;
+    let target = url;
     try {
       setDownloading(true);
-      const res = await fetch(url);
+      if (!target) {
+        target = await retry();
+        if (!target) return; // resolve falhou — o rótulo de erro já orienta o retry
+      }
+      const res = await fetch(target);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const blob = await res.blob();
       const objUrl = URL.createObjectURL(blob);
@@ -151,7 +154,7 @@ export function MediaDocument({ message, isOutbound }: MediaProps) {
       URL.revokeObjectURL(objUrl);
     } catch {
       // Fallback: abre numa aba nova pra o usuário não ficar sem o arquivo.
-      window.open(url, '_blank', 'noopener,noreferrer');
+      if (target) window.open(target, '_blank', 'noopener,noreferrer');
     } finally {
       setDownloading(false);
     }

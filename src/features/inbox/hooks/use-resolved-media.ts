@@ -10,8 +10,12 @@ interface UseResolvedMediaResult {
   mimeType: string | undefined;
   loading: boolean;
   error: string | null;
-  /** Forces a fresh resolve — call when an <img>/<video> errors out (e.g. cached URL expired). */
-  retry: () => Promise<void>;
+  /**
+   * Forces a fresh resolve — call when an <img>/<video> errors out (e.g.
+   * cached URL expired). Resolves to the fresh URL (or undefined on failure)
+   * so callers can chain an action — e.g. download — in the same click.
+   */
+  retry: () => Promise<string | undefined>;
 }
 
 /**
@@ -45,7 +49,7 @@ export function useResolvedMedia(
   );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const inflightRef = useRef<Promise<void> | null>(null);
+  const inflightRef = useRef<Promise<string | undefined> | null>(null);
 
   // Reset cached URL when the message id changes (e.g., key reused in a list).
   useEffect(() => {
@@ -59,14 +63,14 @@ export function useResolvedMedia(
     setError(null);
   }, [message.id, message.content?.mediaUrl, message.content?.mimeType]);
 
-  const doResolve = async (force = false) => {
-    if (!message.id) return;
+  const doResolve = async (force = false): Promise<string | undefined> => {
+    if (!message.id) return undefined;
     if (loading) {
       // Coalesce concurrent calls (e.g., multiple <img>s on the same message).
-      if (inflightRef.current) await inflightRef.current;
-      return;
+      if (inflightRef.current) return inflightRef.current;
+      return undefined;
     }
-    if (!force && url && !looksUnplayable(url)) return;
+    if (!force && url && !looksUnplayable(url)) return url;
 
     setLoading(true);
     setError(null);
@@ -75,19 +79,21 @@ export function useResolvedMedia(
         const resolved = await inboxService.resolveMediaUrl(message.id);
         setUrl(resolved.url);
         if (resolved.mimeType) setMimeType(resolved.mimeType);
+        return resolved.url;
       } catch (err: any) {
         setError(
           err?.response?.data?.message ||
             err?.message ||
             'Não foi possível carregar a mídia',
         );
+        return undefined;
       } finally {
         setLoading(false);
         inflightRef.current = null;
       }
     })();
     inflightRef.current = p;
-    await p;
+    return p;
   };
 
   // Eager mode: resolve immediately if we don't have a playable URL yet. Use

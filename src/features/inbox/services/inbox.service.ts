@@ -353,7 +353,12 @@ export const inboxService = {
   },
 
   async resolveMediaUrl(messageId: string): Promise<{ url: string; mimeType?: string }> {
-    const { data } = await api.get(`/messages/${messageId}/media`);
+    // O resolve pode baixar o arquivo inteiro do provider antes de responder
+    // (artes de estampa passam fácil de 50MB) — o default de 15s derruba a
+    // request faltando segundos pro servidor terminar.
+    const { data } = await api.get(`/messages/${messageId}/media`, {
+      timeout: 120000,
+    });
     return data.data;
   },
 
