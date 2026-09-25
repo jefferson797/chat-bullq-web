@@ -9,7 +9,7 @@ import {
 import {
   Activity, Clock, Target, CheckCircle2, TrendingUp, TrendingDown, Minus,
   Bot, Tag as TagIcon, MessageCircle, CalendarClock,
-  Star, RotateCcw, ShieldCheck,
+  Star, RotateCcw, ShieldCheck, ShoppingCart,
 } from 'lucide-react';
 import { dashboardService, type SparklinePoint } from '@/features/dashboard/services/dashboard.service';
 import { useOrgId } from '@/hooks/use-org-query-key';
@@ -256,16 +256,18 @@ export default function DashboardPage() {
               }
             />
             <HeroKpi
-              label="Taxa de resolução"
-              value={overview.resolutionRatePercent ?? '—'}
-              suffix={overview.resolutionRatePercent !== null ? '%' : undefined}
-              trend={overview.resolutionTrend}
+              label="Taxa de conversão"
+              value={overview.conversionRatePercent ?? '—'}
+              suffix={overview.conversionRatePercent !== null ? '%' : undefined}
+              trend={overview.conversionTrend}
               trendDirection="higher-is-better"
-              icon={CheckCircle2}
+              icon={ShoppingCart}
               accent="#8b5cf6"
-              sparkline={sparklines?.resolution}
-              sparklineSuffix="%"
-              footer={<span>Fechadas / abertas no período</span>}
+              footer={
+                overview.conversionConversations === 0
+                  ? <span className="text-zinc-400">Sem conversas no período</span>
+                  : <span>{overview.conversionConverted} de {overview.conversionConversations} conversas viraram pedido</span>
+              }
             />
           </>
         )}
@@ -273,7 +275,19 @@ export default function DashboardPage() {
 
       {/* Quality KPIs row */}
       {overview && (
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <HeroKpi
+            label="Taxa de resolução"
+            value={overview.resolutionRatePercent ?? '—'}
+            suffix={overview.resolutionRatePercent !== null ? '%' : undefined}
+            trend={overview.resolutionTrend}
+            trendDirection="higher-is-better"
+            icon={CheckCircle2}
+            accent="#14b8a6"
+            sparkline={sparklines?.resolution}
+            sparklineSuffix="%"
+            footer={<span>Fechadas / abertas no período</span>}
+          />
           <HeroKpi
             label="CSAT"
             value={overview.csatScore ?? '—'}

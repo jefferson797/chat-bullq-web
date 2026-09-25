@@ -9,6 +9,12 @@ export interface DashboardOverview {
   avgFirstResponseMinutes: number | null;
   avgFirstResponseTrend: number;
 
+  /** % das conversas do período que viraram pedido (o ERP avisa a compra). */
+  conversionRatePercent: number | null;
+  conversionTrend: number;
+  conversionConversations: number;
+  conversionConverted: number;
+
   slaCompliancePercent: number | null;
   slaTrend: number;
 
