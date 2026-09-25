@@ -237,7 +237,16 @@ export default function DashboardPage() {
               accent="#f59e0b"
               sparkline={sparklines?.firstResponse}
               sparklineSuffix="min"
-              footer={<span>Média do período · menor é melhor</span>}
+              footer={
+                overview.firstResponseSample === 0
+                  ? <span className="text-zinc-400">Ninguém respondido no período</span>
+                  : <span>
+                      Mediana de {overview.firstResponseSample} conversa{overview.firstResponseSample === 1 ? '' : 's'}
+                      {overview.firstResponseP90Minutes !== null
+                        ? ` · 10% piores acima de ${overview.firstResponseP90Minutes} min`
+                        : ''}
+                    </span>
+              }
             />
             <HeroKpi
               label="SLA Compliance"

@@ -6,7 +6,10 @@ export interface DashboardOverview {
   /** Conversas marcadas como presas pelo watchdog (após exceder maxAttempts). */
   stuckConversations: number;
 
+  /** MEDIANA do tempo até a 1a resposta humana (nome mantido por compatibilidade). */
   avgFirstResponseMinutes: number | null;
+  firstResponseP90Minutes: number | null;
+  firstResponseSample: number;
   avgFirstResponseTrend: number;
 
   /** % das conversas do período que viraram pedido (o ERP avisa a compra). */
