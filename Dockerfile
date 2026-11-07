@@ -11,6 +11,15 @@ WORKDIR /app
 ENV NODE_ENV=production
 ARG NEXT_PUBLIC_API_URL
 ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
+# Endereço do TunerID, para o botão "Entrar com TunerID".
+#
+# Precisa ser ARG, não só variável no painel: o Next INLINA `NEXT_PUBLIC_*` em
+# tempo de compilação. Sem o ARG ela chega vazia, o `{TUNERID_WEB && ...}` vira
+# condição falsa constante, e o bundler APAGA o bloco inteiro — some até o
+# texto do botão. O deploy diz "pronto" e a tela volta sem o botão, sem erro
+# nenhum em lugar nenhum. Foi exatamente o que aconteceu no Academy.
+ARG NEXT_PUBLIC_TUNERID_WEB_URL
+ENV NEXT_PUBLIC_TUNERID_WEB_URL=${NEXT_PUBLIC_TUNERID_WEB_URL}
 ENV NEXT_TELEMETRY_DISABLED=1
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
