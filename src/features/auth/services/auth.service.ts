@@ -51,6 +51,16 @@ export const authService = {
     return data.data;
   },
 
+  /**
+   * Troca o bilhete do TunerID por uma sessão daqui. Quem faz a troca de
+   * verdade é o SERVIDOR do Conversas, com o segredo dele: o navegador só
+   * carrega o bilhete de um lado para o outro.
+   */
+  async loginPorTunerId(codigo: string): Promise<AuthResponse> {
+    const { data } = await api.post<{ data: AuthResponse }>('/auth/sso/tunerid', { codigo });
+    return data.data;
+  },
+
   async register(payload: RegisterPayload): Promise<AuthResponse> {
     const { data } = await api.post<{ data: AuthResponse }>('/auth/register', payload);
     return data.data;

@@ -5,11 +5,14 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { KeyRound, Loader2 } from 'lucide-react';
 import { loginSchema, type LoginFormData } from '../schemas/login.schema';
 import { authService } from '../services/auth.service';
 import { useAuthStore } from '@/stores/auth-store';
 import { TunerLogo } from '@/components/ui/tuner-logo';
+
+/** Vazio = login único desligado neste ambiente, e o botão nem aparece. */
+const TUNERID_WEB = process.env.NEXT_PUBLIC_TUNERID_WEB_URL ?? '';
 
 export function LoginForm() {
   const router = useRouter();
@@ -20,6 +23,20 @@ export function LoginForm() {
     resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '' },
   });
+
+  /**
+   * Manda a pessoa para o TunerID começando o pedido DAQUI.
+   *
+   * O `state` é gerado aqui e guardado na sessão deste navegador. Quando o
+   * bilhete voltar, a página de retorno confere se o state é o mesmo: é assim
+   * que ela sabe que o login partiu desta aba, e não de um link que alguém
+   * mandou pronto.
+   */
+  const entrarComTunerId = () => {
+    const state = crypto.randomUUID().replace(/-/g, '');
+    sessionStorage.setItem('sso_state', state);
+    window.location.href = `${TUNERID_WEB}/sso/conversas?state=${state}`;
+  };
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
@@ -52,6 +69,26 @@ export function LoginForm() {
           Entre na sua conta para acessar o painel
         </p>
       </div>
+
+      {TUNERID_WEB && (
+        <div className="space-y-4">
+          <button
+            type="button"
+            onClick={entrarComTunerId}
+            className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md border border-input bg-background px-4 text-sm font-medium transition-colors hover:bg-accent"
+          >
+            <KeyRound className="h-4 w-4" />
+            Entrar com TunerID
+          </button>
+          <div className="flex items-center gap-3">
+            <span className="h-px flex-1 bg-border" />
+            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+              ou com a senha daqui
+            </span>
+            <span className="h-px flex-1 bg-border" />
+          </div>
+        </div>
+      )}
 
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
