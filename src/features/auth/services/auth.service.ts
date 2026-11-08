@@ -46,6 +46,12 @@ interface InvitationInfo {
 }
 
 export const authService = {
+  /** Como se entra aqui: TunerID configurado? Senha local aberta a todos ou só à emergência? */
+  async modo(): Promise<{ tunerid: boolean; senha: 'todos' | 'emergencia' }> {
+    const { data } = await api.get<{ data: { tunerid: boolean; senha: 'todos' | 'emergencia' } }>('/auth/modo');
+    return data.data;
+  },
+
   async login(payload: LoginPayload): Promise<AuthResponse> {
     const { data } = await api.post<{ data: AuthResponse }>('/auth/login', payload);
     return data.data;

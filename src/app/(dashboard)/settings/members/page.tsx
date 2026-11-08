@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { UserPlus, Trash2, Shield, ShieldCheck, User, Users, Copy, Link, X, Hash, Pencil, KeyRound, Check, Ban, Send, Clock } from 'lucide-react';
+import { UserPlus, Trash2, Shield, ShieldCheck, User, Users, Copy, Link, X, Hash, Pencil, KeyRound, Check, Ban, Send, Clock, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { membersService, type Member, type Invitation } from '@/features/settings/services/members.service';
+import { authService } from '@/features/auth/services/auth.service';
 import { useOrgId } from '@/hooks/use-org-query-key';
 import { MemberChannelsDrawer } from '@/features/settings/components/member-channels-drawer';
 
@@ -14,11 +15,17 @@ const roleLabels: Record<string, { label: string; icon: React.ElementType; color
   AGENT: { label: 'Agente', icon: User, color: 'text-zinc-600 bg-zinc-100 dark:bg-zinc-800 dark:text-zinc-400' },
 };
 
+const TUNERID_WEB = process.env.NEXT_PUBLIC_TUNERID_WEB_URL ?? '';
+
 export default function SettingsMembersPage() {
   const queryClient = useQueryClient();
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteRole, setInviteRole] = useState('AGENT');
   const [inviting, setInviting] = useState(false);
+  // Fora da transição, contas nascem e morrem no TunerID. Os canais de cada
+  // atendente continuam sendo decididos aqui.
+  const { data: modo } = useQuery({ queryKey: ['auth-modo'], queryFn: () => authService.modo() });
+  const peloTunerId = modo?.senha === 'emergencia';
 
   const orgId = useOrgId();
   const { data: members, isLoading } = useQuery({
@@ -114,6 +121,24 @@ export default function SettingsMembersPage() {
         </div>
       </div>
 
+      {peloTunerId ? (
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-zinc-50/50 p-4 text-sm text-zinc-600 dark:border-zinc-700 dark:bg-zinc-900/50 dark:text-zinc-400">
+          <p className="max-w-xl">
+            Quem entra no Conversas, em quais empresas e com qual papel é decidido no{' '}
+            <span className="font-medium text-zinc-900 dark:text-zinc-100">TunerID</span>: a conta nasce sozinha no
+            primeiro acesso e cai quando o acesso é cortado lá. Os canais de cada atendente continuam aqui, em
+            &quot;Gerenciar&quot;.
+          </p>
+          <a
+            href={TUNERID_WEB ? `${TUNERID_WEB}/pessoas` : '#'}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            <ExternalLink className="h-4 w-4" /> Liberar acesso no TunerID
+          </a>
+        </div>
+      ) : (
       <div className="mt-6 flex items-end gap-3 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-4 dark:border-zinc-700 dark:bg-zinc-900/50">
         <div className="flex-1">
           <label className="block text-xs font-medium text-zinc-600 dark:text-zinc-400 mb-1">Email do membro</label>
@@ -145,6 +170,7 @@ export default function SettingsMembersPage() {
           <UserPlus className="h-4 w-4" /> Convidar
         </button>
       </div>
+      )}
 
       {inviteLink && (
         <div className="mt-4 flex items-center gap-3 rounded-lg border border-primary/20 bg-primary/5 p-3 dark:border-primary/30 dark:bg-primary/10">
@@ -258,8 +284,11 @@ export default function SettingsMembersPage() {
                       </div>
                     </td>
                     <td className="px-4 py-3">
-                      {m.role === 'OWNER' ? (
-                        <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${roleMeta.color}`}>
+                      {m.role === 'OWNER' || m.geridoPeloTunerId ? (
+                        <span
+                          className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] font-medium ${roleMeta.color}`}
+                          title={m.geridoPeloTunerId ? 'Decidido no TunerID' : undefined}
+                        >
                           <RoleIcon className="h-3 w-3" /> {roleMeta.label}
                         </span>
                       ) : (
@@ -303,7 +332,15 @@ export default function SettingsMembersPage() {
                             <Ban className="h-3 w-3" /> bloqueado
                           </span>
                         )}
-                        {m.role !== 'OWNER' && (
+                        {peloTunerId && !m.geridoPeloTunerId && (
+                          <span
+                            className="mr-1 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-medium text-amber-700"
+                            title="Entra com a senha daqui, para quando o TunerID estiver fora do ar"
+                          >
+                            emergência
+                          </span>
+                        )}
+                        {m.role !== 'OWNER' && !m.geridoPeloTunerId && (
                           <>
                             <button
                               onClick={() => setEditMember(m)}

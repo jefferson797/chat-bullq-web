@@ -14,6 +14,8 @@ export interface Member {
     avatarUrl: string | null;
     isActive: boolean;
   };
+  /** Quem entra, em quais empresas, com qual papel e se está ativo é decidido no TunerID. */
+  geridoPeloTunerId?: boolean;
 }
 
 export interface Invitation {

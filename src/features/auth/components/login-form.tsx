@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useQuery } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -18,6 +19,12 @@ export function LoginForm() {
   const router = useRouter();
   const { setAuth, setActiveOrg } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  // Como se entra aqui. "emergencia": só o TunerID, e a senha local fica para a
+  // conta de emergência (o dia em que o TunerID cair). "todos": transição.
+  const { data: modo } = useQuery({ queryKey: ['auth-modo'], queryFn: () => authService.modo(), retry: 1 });
+  const soTunerId = !!TUNERID_WEB && modo?.senha === 'emergencia';
+  const [emergencia, setEmergencia] = useState(false);
+  const mostraSenha = !soTunerId || emergencia;
 
   const form = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
@@ -80,16 +87,27 @@ export function LoginForm() {
             <KeyRound className="h-4 w-4" />
             Entrar com TunerID
           </button>
-          <div className="flex items-center gap-3">
-            <span className="h-px flex-1 bg-border" />
-            <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
-              ou com a senha daqui
-            </span>
-            <span className="h-px flex-1 bg-border" />
-          </div>
+          {mostraSenha ? (
+            <div className="flex items-center gap-3">
+              <span className="h-px flex-1 bg-border" />
+              <span className="font-mono text-[10px] uppercase tracking-[0.14em] text-muted-foreground">
+                {soTunerId ? 'conta de emergência' : 'ou com a senha daqui'}
+              </span>
+              <span className="h-px flex-1 bg-border" />
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setEmergencia(true)}
+              className="w-full text-center text-[11px] text-muted-foreground hover:text-foreground"
+            >
+              Acesso de emergência
+            </button>
+          )}
         </div>
       )}
 
+      {mostraSenha && (
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
         <div className="space-y-2">
           <label htmlFor="email" className="text-sm font-medium">
@@ -138,6 +156,7 @@ export function LoginForm() {
           Entrar
         </button>
       </form>
+      )}
     </div>
   );
 }
