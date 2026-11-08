@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useQuery } from '@tanstack/react-query';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -44,6 +44,16 @@ export function LoginForm() {
     sessionStorage.setItem('sso_state', state);
     window.location.href = `${TUNERID_WEB}/sso/conversas?state=${state}`;
   };
+
+  // Vindo da tela inicial do TunerID (`?entrar=tunerid`): começa o login único
+  // sozinho. A pessoa já está logada lá, então o TunerID devolve na hora — um
+  // clique no card e ela está dentro, sem parar nesta tela.
+  useEffect(() => {
+    if (TUNERID_WEB && new URLSearchParams(window.location.search).get('entrar') === 'tunerid') {
+      entrarComTunerId();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const onSubmit = async (data: LoginFormData) => {
     setIsLoading(true);
